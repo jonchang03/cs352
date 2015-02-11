@@ -30,12 +30,12 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
 	tmpaddr.sin_family = addr->sin_family;;
 	tmpaddr.sin_port = addr->sin_port;
 	tmpaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
-	return connect(fd, (struct sockaddr *)&tmpaddr, sizeof(tmpaddr));
+        return connect(fd, (struct sockaddr *)&tmpaddr, sizeof(tmpaddr));
 }
 
 int sock352_listen(int fd, int n)
 {
-
+  return listen(fd, n);
 }
 int sock352_accept(int _fd, sockaddr_sock352_t *addr, int *len)
 {
