@@ -44,14 +44,13 @@ int sock352_accept(int _fd, sockaddr_sock352_t *addr, int *len)
 
 int sock352_close(int fd)
 {
-
+  return close(fd);)
 }
 int sock352_read(int fd, void *buf, int count)
 {
-
-
+  return read(fd, buf, count);
 }
 int sock352_write(int fd, void *buf, int count)
 {
-
+  return write(fd, buf, count);
 }
