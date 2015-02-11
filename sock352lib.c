@@ -13,11 +13,11 @@ int sock352_socket(int domain, int type, int protocol)
 	return socket(domain, type, protocol);
 }
 
-int sock352_bind(int sock352_bind(int fd, sockaddr_sock352_t *addr, socklen_t len)
+int sock352_bind(int fd, sockaddr_sock352_t *addr, socklen_t len)
 {
 	struct sockaddr_in tmpaddr;
 	memset((char *)&tmpaddr, 0, sizeof(tmpaddr));
-	tmpaddr.sin_family = addr->sin_family;;
+	tmpaddr.sin_family = addr->sin_family;
 	tmpaddr.sin_port = addr->sin_port;
 	tmpaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
 	return bind(fd, (struct sockaddr *)&tmpaddr, sizeof(tmpaddr));
@@ -27,10 +27,10 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
 {
 	struct sockaddr_in tmpaddr;
 	memset((char *)&tmpaddr, 0, sizeof(tmpaddr));
-	tmpaddr.sin_family = addr->sin_family;;
+	tmpaddr.sin_family = addr->sin_family;
 	tmpaddr.sin_port = addr->sin_port;
 	tmpaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
-        return connect(fd, (struct sockaddr *)&tmpaddr, sizeof(tmpaddr));
+	return connect(fd, (struct sockaddr *)&tmpaddr, sizeof(tmpaddr));
 }
 
 int sock352_listen(int fd, int n)
@@ -40,11 +40,14 @@ int sock352_listen(int fd, int n)
 int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 {
 	struct sockaddr_in tmpaddr;
+	int length = 0;
 	memset((char *)&tmpaddr, 0, sizeof(tmpaddr));
-	tmpaddr.sin_family = addr->sin_family;;
+	tmpaddr.sin_family = addr->sin_family;
 	tmpaddr.sin_port = addr->sin_port;
 	tmpaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
-	return accept(fd, (struct sockaddr *)&tmpaddr, sizeof(tmpaddr));
+	length = sizeof(tmpaddr);
+	len = &length;
+	return accept(fd, (struct sockaddr *)&tmpaddr, len);
 }
 
 int sock352_close(int fd)
