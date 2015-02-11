@@ -15,6 +15,12 @@ int sock352_socket(int domain, int type, int protocol)
 
 int sock352_bind(int sock352_bind(int fd, sockaddr_sock352_t *addr, socklen_t len)
 {
+  struct sockaddr_in tmpaddr;
+  memset((char *)&tmpaddr, 0, sizeof(tmpaddr));
+  tmpaddr.sin_family = addr->sin_family;;
+  tmpaddr.sin_port = addr->sin_port;
+  tmpaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
+  return bind(fd, (struct sockaddr *)&tmpaddr, sizeof(tmpaddr));
 }
 int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
 {
