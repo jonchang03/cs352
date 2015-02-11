@@ -37,9 +37,14 @@ int sock352_listen(int fd, int n)
 {
   return listen(fd, n);
 }
-int sock352_accept(int _fd, sockaddr_sock352_t *addr, int *len)
+int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 {
-
+	struct sockaddr_in tmpaddr;
+	memset((char *)&tmpaddr, 0, sizeof(tmpaddr));
+	tmpaddr.sin_family = addr->sin_family;;
+	tmpaddr.sin_port = addr->sin_port;
+	tmpaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
+	return accept(fd, (struct sockaddr *)&tmpaddr, sizeof(tmpaddr));
 }
 
 int sock352_close(int fd)
