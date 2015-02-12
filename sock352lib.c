@@ -52,7 +52,7 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 
 int sock352_close(int fd)
 {
-  return close(fd);)
+  return close(fd);
 }
 int sock352_read(int fd, void *buf, int count)
 {
