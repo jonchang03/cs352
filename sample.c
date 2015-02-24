@@ -64,19 +64,31 @@ int sock352_socket(int domain, int type, int protocol) {
 int sock352_bind(int fd, struct sockaddr_sock352 * addr, socklen_t len) {
 	if (sock352_flag == SOCK352_SOCKETS) {
 		struct sockaddr_in in_addr;
+	
+		in_addr.sin_family = AF_INET;
+		in_addr.sin_addr.s_addr = INADDR_ANY;
+		in_addr.sin_port = addr->sin_port;
+		return bind(fd, (const struct sockaddr *) &in_addr, sizeof(in_addr));
 	}
-	/* missing some lines */
+	return SOCK352_SUCCESS;
+}
 
+int sock352_listen(int fd, int n) {
+	if (sock352_flag == SOCK352_SOCKETS) {
+		return listen(fd, n);
+	}
+	return SOCK352_SUCCESS;
+}
+
+int sock352_accept(int fd, sockaddr_sock3532_t * addr, int *len) {
 	int new_fd;
 	new_fd = 0;
-
 	if (sock352_flag == SOCK352_SOCKETS) {
 		return accept(fd, (struct sockaddr *) addr, len);
 	}
+
 	return new_fd;
 }
-
-
 
 int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len) {
 	if (sock352_flag == SOCK352_SOCKETS) {
