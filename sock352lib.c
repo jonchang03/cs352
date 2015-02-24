@@ -1,4 +1,13 @@
+/* sock3532lib.c */
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #include <sock352lib.h>
+#include <sock352.h>
+#include <uthash.h>
 
 int sock352_init(int udp_port)
 {
@@ -8,7 +17,7 @@ int sock352_init(int udp_port)
     connection = malloc(sizeof(CB));
     connection->portNum = SOCK352_DEFAULT_UDP_PORT;
     return SOCK352_SUCCESS;
-  }
+	}  
 }
 
 int sock352_socket(int domain, int type, int protocol)
