@@ -42,7 +42,7 @@ CFLAGS= -g -O0 -I. -I./include
 DEPS = sock352.h sock352-int.h 
 CLIENT_OBJ = client.o sock352lib.o 
 SERVER_OBJ = server.o sock352lib.o 
-LIBS = -lssl -lcrypto -lm 
+LIBS = -lssl -lcrypto -lm -lpthread
 
 all: client server 
 
