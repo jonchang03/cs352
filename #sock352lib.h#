@@ -1,14 +1,12 @@
-<<<<<<< HEAD
 #ifndef SOCK352LIB_H
-#def SOCK352LIB_H
+#define SOCK352LIB_H 1
 
-#include <sock352.h>
-=======
-#include "sock352.h"
->>>>>>> ff1ce88146962e6063313f700d9129d87820f666
+#include "uthash.h"
+#include "utlist.h"
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdint.h>
+#include "sock352.h"
 
 #define CLOSED 1
 #define SYN_SENT 2
@@ -37,7 +35,7 @@ typedef struct sock352_connection {
 
 
   unsigned int sock352_fd;
-
+  UT_hash_handle hh;
 }sock352_connection_t;
 
 typedef struct sock352_fragment {
