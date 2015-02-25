@@ -1,7 +1,11 @@
+<<<<<<< HEAD
 #ifndef SOCK352LIB_H
 #def SOCK352LIB_H
 
 #include <sock352.h>
+=======
+#include "sock352.h"
+>>>>>>> ff1ce88146962e6063313f700d9129d87820f666
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdint.h>
