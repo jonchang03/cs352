@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdint.h>
-#include "sock352.h"
 
 #define CLOSED 1
 #define SYN_SENT 2
