@@ -1,8 +1,14 @@
 #ifndef SOCK352LIB_H
+<<<<<<< HEAD
 #define SOCK352LIB_H 1
 
 #include "uthash.h"
 #include "utlist.h"
+=======
+#define SOCK352LIB_H
+
+#include "sock352.h"
+>>>>>>> 0376363025f4ecfcb62670d73937fd493a9c7caf
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -33,6 +39,22 @@ typedef struct sock352_connection {
   struct sock352_fragment *noAckButTransmt_frags;
   struct sock352_fragment *recvd_frags;
 
+<<<<<<< HEAD
+=======
+  struct sock352_fragment * fragments;    /* list of fragments */
+  struct sock352_connection *next;        /* list of connections */
+  struct sock352_connection *prev;  
+  
+  uint32_t local_port;                    /* sockets for local and remote ports */
+  uint32_t remote_port;
+  uint16_t src_port;                      /* source and destination UDP ports */
+  uint16_t dest_port;
+
+  uint64_t timeout;
+  uint64_t ACK;                           /* sent and acknowledged */
+  uint64_t NAK;                           /* sent and unacknowledged */
+  uint64_t MAX;                           /* maximum we can send */ 
+>>>>>>> 0376363025f4ecfcb62670d73937fd493a9c7caf
 
   unsigned int sock352_fd;
   UT_hash_handle hh;
