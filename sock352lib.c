@@ -5,9 +5,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include <sock352lib.h>
-#include <sock352.h>
-#include <uthash.h>
+#include "sock352lib.h"
+#include "uthash.h"
+#include <time.h>
 
 int sock352_init(int udp_port)
 {
@@ -38,22 +38,17 @@ int sock352_socket(int domain, int type, int protocol)
 
 int sock352_bind(int fd, sockaddr_sock352_t *addr, socklen_t len)
 {
-	struct sockaddr_in tmpaddr;
-	memset((char *)&tmpaddr, 0, sizeof(tmpaddr));
-	tmpaddr.sin_family = AF_INET;
-	tmpaddr.sin_port = addr->sin_port;
-	tmpaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
-	return bind(fd, (struct sockaddr *)&tmpaddr, sizeof(tmpaddr));
+	struct sockaddr_in addr_in;
+	memset((char *)&addr_in, 0, sizeof(addr_in));
+	addr_in.sin_family = AF_INET;
+	addr_in.sin_port = addr->sin_port;
+	addr_in.sin_addr.s_addr = addr->sin_addr.s_addr;
+	return bind(fd, (struct sockaddr *)&addr_in, sizeof(addr_in));
 }
 
 int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
 {
-	/*
-		-create a UDP connection packet
-		-set up a sequence number
-		-send a SYN packet sendto()
-
-		-extract (ACK) numbers
+  /*		-extract (ACK) numbers
 		-create empty list of fragments (send and receive)
 		-start timeout thread (What if packets get dropped?)
 		Loop pattern:
@@ -66,6 +61,19 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
 			-sleep for the timeout value
 		-return from connect() call
 	*/
+  sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
+  memset(frag, 0, sizeof(sock352_fragment_t));
+  srand((unsigned int)(time(NULL)));
+  frag->header.sequence_no = rand();
+  frag->header.flags = SOCK352_SYN;
+  struct sockaddr_in servaddr;
+  memset((char *)&servaddr, 0, sizeof(servaddr));
+  servaddr.sin_family = AF_INET;
+  servaddr.sin_port = addr->sin_port;
+  servaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
+  sendto(fd, frag, sizeof(frag), 0, (struct sockaddr *)&servaddr, sizeof(servaddr));
+  
+  recvfrom();
 }
 
 int sock352_listen(int fd, int n)
