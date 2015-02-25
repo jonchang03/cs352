@@ -35,7 +35,7 @@ typedef struct sock352_connection {
 
   uint64_t timeout;
   uint64_t ACK;                           /* sent and acknowledged */
-  uint64_t UNACK;                         /* sent and unacknowledged */
+  uint64_t NAK;                           /* sent and unacknowledged */
   uint64_t MAX;                           /* maximum we can send */ 
 
 }sock352_connection_t;
