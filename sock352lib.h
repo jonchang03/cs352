@@ -1,4 +1,4 @@
-#include <sock352.h>
+#include "sock352.h"
 #include <stdlib.h>
 
 #define CLOSED 1
