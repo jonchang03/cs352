@@ -50,46 +50,48 @@ int sock352_bind(int fd, sockaddr_sock352_t *addr, socklen_t len)
 
 int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
 {
-  /*		-extract (ACK) numbers
-		-create empty list of fragments (send and receive)
-		-start timeout thread (What if packets get dropped?)
-		Loop pattern:
-			-Lock the connection (pthread_mutex_lock())
-			-scan the transmit fragment list for timeouts
-			-resend expired fragments
-			-unlock
-			-call receive packets function (non-blocking)
-				(or have a separate receiver thread)
-			-sleep for the timeout value
-		-return from connect() call
-  */
-  /* create a connection*/
   sock352_connection_t * conn = malloc(sizeof(sock352_connection_t));
   memset(conn, 0, sizeof(sock352_connection_t));
   conn->state = CLOSED;
   HASH_ADD_INT(_GLOABAL.active_connections, sock352_fd, conn);
 
-  sock352_fragment_t *syn = malloc(sizeof(sock352_fragment_t));
-  memset(syn, 0, sizeof(sock352_fragment_t));
+  sock352_fragment_t *frag1 = malloc(sizeof(sock352_fragment_t));
+  memset(frag1, 0, sizeof(sock352_fragment_t));
   srand((unsigned int)(time(NULL)));
-  syn->header.sequence_no = rand();
-  syn->header.flags = SOCK352_SYN;
+  frag1->header.sequence_no = rand();
+  frag1->header.ack_no = 0;
+  frag1->header.flags = SOCK352_SYN;
   
   struct sockaddr_in servaddr;
   memset((char *)&servaddr, 0, sizeof(servaddr));
   servaddr.sin_family = AF_INET;
   servaddr.sin_port = addr->sin_port;
   servaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
-  sendto(fd, syn, sizeof(syn), 0, (struct sockaddr *)&servaddr, sizeof(servaddr));
+  sendto(fd, frag1, sizeof(frag1), 0, (struct sockaddr *)&servaddr, sizeof(servaddr));
 
   HASH_FIND_INT(_GLOABAL.active_connections, &fd, conn);
   conn->state = SYN_SENT;
 
-  sock352_fragment_t *ack = malloc(sizeof(sock352_fragment_t));
-  memset(ack, 0, sizeof(sock352_fragment_t));
+  sock352_fragment_t *frag2 = malloc(sizeof(sock352_fragment_t));
+  memset(frag2, 0, sizeof(sock352_fragment_t));
   socklen_t addrlen = sizeof(servaddr);
+<<<<<<< HEAD
   recvfrom(fd, ack, sizeof(ack), 0, (struct sockaddr *)&servaddr, &addrlen);
+=======
+  recvfrom(fd, frag2, sizeof(frag2), 0, (struct sockaddr *)&servaddr, &addrlen);;
+  if (frag2->header.ack_no != frag2->header.sequence_no + 1) 
+    return SOCK352_FAILURE;
+>>>>>>> 37152e04e1231f210f66aee28f99abf5ca031259
   
+  sock352_fragment_t *frag3 = malloc(sizeof(sock352_fragment_t));
+  memset(frag3, 0, sizeof(sock352_fragment_t));
+  frag3->header.sequence_no = frag1->header.sequence_no+1;
+  frag1->header.ack_no = frag2->header.sequence_no+1;
+  frag1->header.flags = SOCK352_ACK;
+
+  HASH_FIND_INT(_GLOABAL.active_connections, &fd, conn);
+  conn->state = ESTABLISHED;
+  return SOCK352_SUCCESS;
 }
 
 int sock352_listen(int fd, int n)
