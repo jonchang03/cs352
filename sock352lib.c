@@ -18,10 +18,32 @@ int sock352_init(int udp_port)
     connection->portNum = SOCK352_DEFAULT_UDP_PORT;
     return SOCK352_SUCCESS;
 	}  
+
+	/* timeout thread */
+
+	/* global structure for all connections */
+
+	/* socket port numbers to use */
+
+	/* accept/connect calls create a connection structure:
+		-hold state of connection
+		-manage state through connection, data transfer, tear down phases
+		-mutex lock to access connection
+		-list of fragments
+		-socket file descriptors for where to send the fragments
+	*/
+
+	/* fragment structure:
+		-start/end/size of the fragment
+		-packet header (in case we need to re-transmit)
+		-data of the fragment
+		-list management pointers (prev/next)
+	*/
 }
 
 int sock352_socket(int domain, int type, int protocol)
 {
+
 	return socket(domain, type, protocol);
 }
 
@@ -43,6 +65,24 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
 	tmpaddr.sin_port = addr->sin_port;
 	tmpaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
 	return connect(fd, (struct sockaddr *)&tmpaddr, sizeof(tmpaddr));
+	/*
+		-create a UDP connection packet
+		-set up a sequence number
+		-send a SYN packet sendto()
+
+		-extract (ACK) numbers
+		-create empty list of fragments (send and receive)
+		-start timeout thread (What if packets get dropped?)
+		Loop pattern:
+			-Lock the connection (pthread_mutex_lock())
+			-scan the transmit fragment list for timeouts
+			-resend expired fragments
+			-unlock
+			-call receive packets function (non-blocking)
+				(or have a separate receiver thread)
+			-sleep for the timeout value
+		-return from connect() call
+	*/
 }
 
 int sock352_listen(int fd, int n)
@@ -60,6 +100,16 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 	length = sizeof(tmpaddr);
 	len = &length;
 	return accept(fd, (struct sockaddr *)&tmpaddr, len);
+
+	/* 
+		-wait for a connection packet recfrom()
+
+		-set up sequence and acknowledgement numbers
+		-return a SYS/ACK flagged packet
+		-create empty lists of fragments (receive and send)
+
+		- return from accept() call
+	*/
 }
 
 int sock352_close(int fd)
@@ -69,8 +119,32 @@ int sock352_close(int fd)
 int sock352_read(int fd, void *buf, int count)
 {
   return read(fd, buf, count);
+
+  /*
+		-Block waiting for a UDP packet
+		Receive packet function:
+			-Lock the connection
+			-Update transmit list with new ack#
+			-Find the place on the recv fragment list
+			-Insert the fragment
+			-Find the lowest # fragment
+			-send an ACK with the highest sequence
+			-Copy the data from the read pointer
+			-unlock
+			-Return from the read call.
+  */
 }
 int sock352_write(int fd, void *buf, int count)
 {
   return write(fd, buf, count);
+
+  /*
+  	-lock the connection
+  	-create a new fragment
+  	-create a new packet header for this fragment
+  	-add it to the transmit list
+  	-send the header + data
+  	-record the time sent
+  	-unlock the connection
+  */
 }
