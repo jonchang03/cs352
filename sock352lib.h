@@ -30,9 +30,8 @@ typedef struct sock352_connection {
   struct sock352_connection *next;
   struct sock352_connection *prev;
 
-  unsigned int source_port;
-  unsigned int dest_port;
-  unsigned int next_seqNum;
+  
+  uint32_t next_seqNum;
   struct sock352_fragment *noAckButTransmt_frags;
   struct sock352_fragment *recvd_frags;
 
@@ -46,12 +45,12 @@ typedef struct sock352_connection {
   uint16_t dest_port;
 
   uint64_t timeout;
-  uint64_t ACK;                           /* sent and acknowledged */
+  uint64_t seq_low;                       /* sent and acknowledged */
   uint64_t NAK;                           /* sent and unacknowledged */
   uint64_t MAX;                           /* maximum we can send */ 
 
-  unsigned int sock352_fd;
-  UT_hash_handle hh;
+  uint32_t sock352_fd;                
+  UT_hash_handle hh;                      /* makes this structure hashable */
 }sock352_connection_t;
 
 typedef struct sock352_fragment {
