@@ -1,7 +1,7 @@
 #ifndef SOCK352LIB_H
 #define SOCK352LIB_H
 
-#include <sock352.h>
+#include "sock352.h"
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdint.h>
