@@ -7,6 +7,7 @@
 
 #include "sock352lib.h"
 #include "uthash.h"
+#include "utlist.h"
 #include <time.h>
 
 int sock352_init(int udp_port)
@@ -15,20 +16,28 @@ int sock352_init(int udp_port)
     return SOCK352_FAILURE;
   } else {
     /* timeout thread */
+
     /* global structure for all connections */ 
     _GLOABAL.active_connections = (sock352_connection_t *) NULL;
     _GLOABAL.sock352_base_fd = 0;
+
     /* socket port numbers to use */
     _GLOABAL.sock352_recv_port = SOCK352_DEFAULT_UDP_PORT;
+
+    /* create a connection*/
+    sock352_connection_t * conn = malloc(sizeof(sock352_connection_t));
+    memset(conn, 0, sizeof(sock352_connection_t));
+    conn->state = CLOSED;
+    DL_APPEND(_GLOABAL.active_connections, conn);
     return SOCK352_SUCCESS;
-  }  
+  }
 }
 
 int sock352_socket(int domain, int type, int protocol)
 {
   if (domain != AF_CS352) {
     return SOCK352_FAILURE;
-    
+
   }
   if (type != SOCK_STREAM) {
     return SOCK352_FAILURE;
@@ -38,12 +47,12 @@ int sock352_socket(int domain, int type, int protocol)
 
 int sock352_bind(int fd, sockaddr_sock352_t *addr, socklen_t len)
 {
-	struct sockaddr_in addr_in;
-	memset((char *)&addr_in, 0, sizeof(addr_in));
-	addr_in.sin_family = AF_INET;
-	addr_in.sin_port = addr->sin_port;
-	addr_in.sin_addr.s_addr = addr->sin_addr.s_addr;
-	return bind(fd, (struct sockaddr *)&addr_in, sizeof(addr_in));
+  struct sockaddr_in addr_in;
+  memset((char *)&addr_in, 0, sizeof(addr_in));
+  addr_in.sin_family = AF_INET;
+  addr_in.sin_port = addr->sin_port;
+  addr_in.sin_addr.s_addr = addr->sin_addr.s_addr;
+  return bind(fd, (struct sockaddr *)&addr_in, sizeof(addr_in));
 }
 
 int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
@@ -61,19 +70,22 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
 			-sleep for the timeout value
 		-return from connect() call
 	*/
-  sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
-  memset(frag, 0, sizeof(sock352_fragment_t));
+  sock352_fragment_t *syn = malloc(sizeof(sock352_fragment_t));
+  memset(syn, 0, sizeof(sock352_fragment_t));
   srand((unsigned int)(time(NULL)));
-  frag->header.sequence_no = rand();
-  frag->header.flags = SOCK352_SYN;
+  syn->header.sequence_no = rand();
+  syn->header.flags = SOCK352_SYN;
   struct sockaddr_in servaddr;
   memset((char *)&servaddr, 0, sizeof(servaddr));
   servaddr.sin_family = AF_INET;
   servaddr.sin_port = addr->sin_port;
   servaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
-  sendto(fd, frag, sizeof(frag), 0, (struct sockaddr *)&servaddr, sizeof(servaddr));
+  sendto(fd, syn, sizeof(syn), 0, (struct sockaddr *)&servaddr, sizeof(servaddr));
+  _GLOABAL.active_connections
+  sock352_fragment_t *ack = malloc(sizeof(sock352_fragment_t));
+  memset(ack, 0, sizeof(sock352_fragment_t));
+  recvfrom(fd, ack, sizeof(ack), 0, (struct sockaddr *)&servaddr, &sizeof(servaddr));;
   
-  recvfrom();
 }
 
 int sock352_listen(int fd, int n)
