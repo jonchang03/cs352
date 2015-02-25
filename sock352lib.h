@@ -3,9 +3,7 @@
 
 #include "uthash.h"
 #include "utlist.h"
-#define SOCK352LIB_H
 
-#include "sock352.h"
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -25,10 +23,6 @@ typedef struct sock352_connection {
   uint32_t state;
 
   pthread_mutex_t lock;                    /* mutex locks to access the connection */
-  struct sock352_fragment * fragments;     /* list of fragments */
-  struct sock352_connection *next;
-  struct sock352_connection *prev;
-
   
   uint32_t next_seqNum;
   struct sock352_fragment *noAckButTransmt_frags;

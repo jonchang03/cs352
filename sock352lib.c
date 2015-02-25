@@ -22,11 +22,6 @@ int sock352_init(int udp_port)
     /* socket port numbers to use */
     _GLOABAL.sock352_recv_port = SOCK352_DEFAULT_UDP_PORT;
 
-    /* create a connection*/
-    sock352_connection_t * conn = malloc(sizeof(sock352_connection_t));
-    memset(conn, 0, sizeof(sock352_connection_t));
-    conn->state = CLOSED;
-    HASH_ADD_INT(_GLOABAL.active_connections, sock352_fd, conn);
     return SOCK352_SUCCESS;
   }
 }
@@ -67,22 +62,33 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
 				(or have a separate receiver thread)
 			-sleep for the timeout value
 		-return from connect() call
-	*/
+  */
+  /* create a connection*/
+  sock352_connection_t * conn = malloc(sizeof(sock352_connection_t));
+  memset(conn, 0, sizeof(sock352_connection_t));
+  conn->state = CLOSED;
+  HASH_ADD_INT(_GLOABAL.active_connections, sock352_fd, conn);
+
   sock352_fragment_t *syn = malloc(sizeof(sock352_fragment_t));
   memset(syn, 0, sizeof(sock352_fragment_t));
   srand((unsigned int)(time(NULL)));
   syn->header.sequence_no = rand();
   syn->header.flags = SOCK352_SYN;
+  
   struct sockaddr_in servaddr;
   memset((char *)&servaddr, 0, sizeof(servaddr));
   servaddr.sin_family = AF_INET;
   servaddr.sin_port = addr->sin_port;
   servaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
   sendto(fd, syn, sizeof(syn), 0, (struct sockaddr *)&servaddr, sizeof(servaddr));
-  _GLOABAL.active_connections
+
+  HASH_FIND_INT(_GLOABAL.active_connections, &fd, conn);
+  conn->state = SYN_SENT;
+
   sock352_fragment_t *ack = malloc(sizeof(sock352_fragment_t));
   memset(ack, 0, sizeof(sock352_fragment_t));
-  recvfrom(fd, ack, sizeof(ack), 0, (struct sockaddr *)&servaddr, &sizeof(servaddr));;
+  socklen_t addrlen = sizeof(servaddr);
+  recvfrom(fd, ack, sizeof(ack), 0, (struct sockaddr *)&servaddr, &addrlen);;
   
 }
 
