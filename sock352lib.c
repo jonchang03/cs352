@@ -6,8 +6,6 @@
 #include <netinet/in.h>
 
 #include "sock352lib.h"
-#include "uthash.h"
-#include "utlist.h"
 #include <time.h>
 
 int sock352_init(int udp_port)
@@ -28,7 +26,7 @@ int sock352_init(int udp_port)
     sock352_connection_t * conn = malloc(sizeof(sock352_connection_t));
     memset(conn, 0, sizeof(sock352_connection_t));
     conn->state = CLOSED;
-    DL_APPEND(_GLOABAL.active_connections, conn);
+    HASH_ADD_INT(_GLOABAL.active_connections, sock352_fd, conn);
     return SOCK352_SUCCESS;
   }
 }
