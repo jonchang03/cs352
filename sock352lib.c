@@ -14,44 +14,33 @@ int sock352_init(int udp_port)
   if (udp_port != 0) {
     return SOCK352_FAILURE;
   } else {
-    connection = malloc(sizeof(CB));
-    connection->portNum = SOCK352_DEFAULT_UDP_PORT;
+    /* timeout thread */
+    /* global structure for all connections */ 
+    _GLOABAL.active_connections = (sock352_connection_t *) NULL;
+    _GLOABAL.sock352_base_fd = 0;
+    /* socket port numbers to use */
+    _GLOABAL.sock352_recv_port = SOCK352_DEFAULT_UDP_PORT;
     return SOCK352_SUCCESS;
-	}  
-
-	/* timeout thread */
-
-	/* global structure for all connections */
-
-	/* socket port numbers to use */
-
-	/* accept/connect calls create a connection structure:
-		-hold state of connection
-		-manage state through connection, data transfer, tear down phases
-		-mutex lock to access connection
-		-list of fragments
-		-socket file descriptors for where to send the fragments
-	*/
-
-	/* fragment structure:
-		-start/end/size of the fragment
-		-packet header (in case we need to re-transmit)
-		-data of the fragment
-		-list management pointers (prev/next)
-	*/
+  }  
 }
 
 int sock352_socket(int domain, int type, int protocol)
 {
-
-	return socket(domain, type, protocol);
+  if (domain != AF_CS352) {
+    return SOCK352_FAILURE;
+    
+  }
+  if (type != SOCK_STREAM) {
+    return SOCK352_FAILURE;
+  }
+  return socket(domain, type, protocol);
 }
 
 int sock352_bind(int fd, sockaddr_sock352_t *addr, socklen_t len)
 {
 	struct sockaddr_in tmpaddr;
 	memset((char *)&tmpaddr, 0, sizeof(tmpaddr));
-	tmpaddr.sin_family = addr->sin_family;
+	tmpaddr.sin_family = AF_INET;
 	tmpaddr.sin_port = addr->sin_port;
 	tmpaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
 	return bind(fd, (struct sockaddr *)&tmpaddr, sizeof(tmpaddr));
@@ -59,12 +48,6 @@ int sock352_bind(int fd, sockaddr_sock352_t *addr, socklen_t len)
 
 int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
 {
-	struct sockaddr_in tmpaddr;
-	memset((char *)&tmpaddr, 0, sizeof(tmpaddr));
-	tmpaddr.sin_family = addr->sin_family;
-	tmpaddr.sin_port = addr->sin_port;
-	tmpaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
-	return connect(fd, (struct sockaddr *)&tmpaddr, sizeof(tmpaddr));
 	/*
 		-create a UDP connection packet
 		-set up a sequence number
@@ -91,16 +74,6 @@ int sock352_listen(int fd, int n)
 }
 int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 {
-	struct sockaddr_in tmpaddr;
-	int length = 0;
-	memset((char *)&tmpaddr, 0, sizeof(tmpaddr));
-	tmpaddr.sin_family = addr->sin_family;
-	tmpaddr.sin_port = addr->sin_port;
-	tmpaddr.sin_addr.s_addr = addr->sin_addr.s_addr;
-	length = sizeof(tmpaddr);
-	len = &length;
-	return accept(fd, (struct sockaddr *)&tmpaddr, len);
-
 	/* 
 		-wait for a connection packet recfrom()
 

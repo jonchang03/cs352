@@ -12,13 +12,27 @@
 #define CLOSE_WAIT 9
 #define LAST_ACK 10
 
-typedef struct cs352_connection {
+typedef struct sock352_connection {
+  unsigned int state;
+  unsigned int source_port;
+  unsigned int dest_port;
+  unsigned int next_seqNum;
+  struct sock352_fragment *noAckButTransmt_frags;
+  struct sock352_fragment *recvd_frags;
+  struct sock352_connection *next;
+  struct sock352_connection *prev;
+  int sock352_fd;
+}sock352_connection_t;
 
+typedef struct sock352_fragment {
+  sock352_pkt_hdr_t header;
+  char data[MAXIMUM_LENGTH];
+  struct sock352_fragment *next;
+  struct sock352_fragment *prev;
+}sock352_fragment_t;
 
-}
-
-  typedef struct cs352_fragment {
-    unsigned int state;
-    unsigned int portNum;
-
-  }fragment;
+struct sock352_GLOBAL {
+  sock352_connection_t *active_connections;
+  unsigned int sock352_recv_port;
+  unsigned int sock352_base_fd;
+}_GLOABAL;
