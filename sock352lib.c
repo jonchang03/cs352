@@ -88,7 +88,7 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
   sock352_fragment_t *ack = malloc(sizeof(sock352_fragment_t));
   memset(ack, 0, sizeof(sock352_fragment_t));
   socklen_t addrlen = sizeof(servaddr);
-  recvfrom(fd, ack, sizeof(ack), 0, (struct sockaddr *)&servaddr, &addrlen);;
+  recvfrom(fd, ack, sizeof(ack), 0, (struct sockaddr *)&servaddr, &addrlen);
   
 }
 
@@ -98,17 +98,16 @@ int sock352_listen(int fd, int n)
 }
 int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 {
-	/* 
-		-wait for a connection packet recfrom()
-		
-		-set up sequence and acknowledgement numbers
-		
-		-return a SYS/ACK flagged packet
-		
-		-create empty lists of fragments (receive and send)
+	/* wait for a connection packet recvfrom() */
+	int recvlen;                    /* # bytes received */
+	int fd;
 
-		- return from accept() call
-	*/
+	/* set up sequence and acknowledgement numbers */
+	/* return a SYS/ACK flagged packet */
+		// srand((unsigned int)(time(NULL)));
+	/* create empty lists of fragments (receive and send) */
+
+	/* return from accept() call */
 }
 
 int sock352_close(int fd)
