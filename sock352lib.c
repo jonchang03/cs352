@@ -94,9 +94,11 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 {
 	/* 
 		-wait for a connection packet recfrom()
-
+		
 		-set up sequence and acknowledgement numbers
+		
 		-return a SYS/ACK flagged packet
+		
 		-create empty lists of fragments (receive and send)
 
 		- return from accept() call
