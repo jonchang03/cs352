@@ -1,5 +1,5 @@
 #ifndef SOCK352LIB_H
-#def SOCK352LIB_H
+#define SOCK352LIB_H
 
 #include <sock352.h>
 #include <stdlib.h>
