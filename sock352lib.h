@@ -24,7 +24,7 @@ typedef struct sock352_connection {
 
   pthread_mutex_t lock;                   /* mutex locks to access the connection */
 
-  sock352_fragment_t * fragments;         /* list of fragments */
+  struct sock352_fragment * fragments;    /* list of fragments */
   struct sock352_connection *next;        /* list of connections */
   struct sock352_connection *prev;  
   
@@ -36,9 +36,7 @@ typedef struct sock352_connection {
   uint64_t timeout;
   uint64_t ACK;                           /* sent and acknowledged */
   uint64_t UNACK;                         /* sent and unacknowledged */
-  uint64_t MAX;                           /* maximum we can send */
-
-  unsigned int next_seqNum;
+  uint64_t MAX;                           /* maximum we can send */ 
 
 }sock352_connection_t;
 
