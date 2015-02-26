@@ -99,12 +99,16 @@ int sock352_listen(int fd, int n)
 int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 {
 	/* wait for a connection packet recvfrom() */
-	int recvlen;                    /* # bytes received */
-	int fd;
+	#define BUFSIZE 2048
+	unsigned char buf[BUFSIZE];     		/* receive buffer */
+	int byte_count;                    	/* # bytes received */
+	byte_count = recvfrom(fd, buf, BUFSIZE, 0, &addr, &len); 
 
 	/* set up sequence and acknowledgement numbers */
+
 	/* return a SYS/ACK flagged packet */
-		// srand((unsigned int)(time(NULL)));
+
+	
 	/* create empty lists of fragments (receive and send) */
 
 	/* return from accept() call */
