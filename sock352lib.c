@@ -128,6 +128,8 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 	byte_count = recvfrom(fd, buf, BUFSIZE, 0, &addr, &len); 
 
 	/* set up sequence and acknowledgement numbers */
+  srand((unsigned int)(time(NULL)));
+  uint32_t initSeq = rand(); /* generate sequence number */
 
 	/* return a SYS/ACK flagged packet */
 
