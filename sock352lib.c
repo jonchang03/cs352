@@ -12,7 +12,8 @@ int sock352_init(int udp_port)
 {
   if (udp_port != 0) {
     return SOCK352_FAILURE;
-  } else {
+  } 
+  else {
     /* timeout thread */
 
     /* global structure for all connections */ 
@@ -28,18 +29,23 @@ int sock352_init(int udp_port)
 
 int sock352_socket(int domain, int type, int protocol)
 {
+	/* ensure that the domain and type are correct */
   if (domain != AF_CS352) {
     return SOCK352_FAILURE;
-
   }
+
   if (type != SOCK_STREAM) {
     return SOCK352_FAILURE;
   }
+  
+  /*create connection and initialize state and file descriptor */
   int fd = socket(domain, type, protocol);
   sock352_connection_t * conn = malloc(sizeof(sock352_connection_t));
   memset(conn, 0, sizeof(sock352_connection_t));
   conn->state = CLOSED;
   conn->sock352_fd = fd;
+
+  /* add connection to the list of active connections */
   HASH_ADD_INT(_GLOABAL.active_connections, sock352_fd, conn);
   return fd;
 }
