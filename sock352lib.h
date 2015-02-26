@@ -3,7 +3,7 @@
 
 #include "uthash.h"
 #include "utlist.h"
-
+#include "sock352.h"
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -36,6 +36,8 @@ typedef struct sock352_connection {
   uint32_t remote_port;
   uint16_t src_port;                      /* source and destination UDP ports */
   uint16_t dest_port;
+  struct in_addr src_addr;
+  struct in_addr dest_addr;
 
   uint64_t timeout;
   uint64_t seq_low;                       /* sent and acknowledged */
