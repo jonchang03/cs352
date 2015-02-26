@@ -92,25 +92,14 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
   if (frag->header.ack_no != initSeq + 1) 
     return SOCK352_FAILURE;
 
-  /* set up  */
-
-  sock352_fragment_t *frag2 = malloc(sizeof(sock352_fragment_t));
-  memset(frag2, 0, sizeof(sock352_fragment_t));
-  socklen_t addrlen = sizeof(servaddr);
-  recvfrom(fd, ack, sizeof(ack), 0, (struct sockaddr *)&servaddr, &addrlen);
-  recvfrom(fd, frag2, sizeof(frag2), 0, (struct sockaddr *)&servaddr, &addrlen);;
-  if (frag2->header.ack_no != frag2->header.sequence_no + 1) 
-    return SOCK352_FAILURE;
-
+  /* set up SYNACK segment */
+  uint32_t ack = frag->header.sequence_no + 1;
+  memset(frag, 0, sizeof(sock352_fragment_t));
+  frag->header.sequence_no = initSeq+1;
+  frag->header.ack_no = ack;
+  frag->header.flags = SOCK352_ACK;
   
-
-  sock352_fragment_t *frag3 = malloc(sizeof(sock352_fragment_t));
-  memset(frag3, 0, sizeof(sock352_fragment_t));
-  frag3->header.sequence_no = frag1->header.sequence_no+1;
-  frag1->header.ack_no = frag2->header.sequence_no+1;
-  frag1->header.flags = SOCK352_ACK;
-
-  HASH_FIND_INT(_GLOABAL.active_connections, &fd, conn);
+  /* change connection state */
   conn->state = ESTABLISHED;
   return SOCK352_SUCCESS;
 }
