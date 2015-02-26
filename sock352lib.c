@@ -84,6 +84,7 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
   /* change connection state */
   conn->state = SYN_SENT;
 
+
   /* receive ACK segment */
   recvfrom(fd, frag, sizeof(frag), 0, (struct sockaddr *)addr, &len);
 
@@ -92,6 +93,17 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
     return SOCK352_FAILURE;
 
   /* set up  */
+
+  sock352_fragment_t *frag2 = malloc(sizeof(sock352_fragment_t));
+  memset(frag2, 0, sizeof(sock352_fragment_t));
+  socklen_t addrlen = sizeof(servaddr);
+  recvfrom(fd, ack, sizeof(ack), 0, (struct sockaddr *)&servaddr, &addrlen);
+  recvfrom(fd, frag2, sizeof(frag2), 0, (struct sockaddr *)&servaddr, &addrlen);;
+  if (frag2->header.ack_no != frag2->header.sequence_no + 1) 
+    return SOCK352_FAILURE;
+
+  
+
   sock352_fragment_t *frag3 = malloc(sizeof(sock352_fragment_t));
   memset(frag3, 0, sizeof(sock352_fragment_t));
   frag3->header.sequence_no = frag1->header.sequence_no+1;
