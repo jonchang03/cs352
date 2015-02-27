@@ -192,7 +192,6 @@ int sock352_read(int fd, void *buf, int count)
   return SOCK352_SUCCESS;
   
   /* Block waiting for a UDP packet */
-<<<<<<< HEAD
 
 	/* Receive packet function: */
 	
@@ -214,20 +213,6 @@ int sock352_read(int fd, void *buf, int count)
 	
 	/* Return from the read call. */
 	return SOCK352_SUCCESS;
-
-=======
-  /* Receive packet function */
-  /* Lock the connection */
-  /* Update transmit list with new ack# */
-  /* Find the place on the recv fragment list */
-  /* Insert the fragment */
-  /* Find the lowest # fragment */
-  /* send an ACK with the highest sequence */
-  /* Copy the data from the read pointer */
-  /* unlock */
-  /* Return from the read call. */
-  
->>>>>>> af819acda5ce8363313f63cfff1dc83e17a877d8
 }
 
 pthread_mutex_t mutex_connection;
