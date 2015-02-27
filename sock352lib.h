@@ -1,4 +1,4 @@
-#ifndef SOCK352LIB_H
+#ifndef SO3CK352LIB_H
 #define SOCK352LIB_H 1
 
 #include "uthash.h"
