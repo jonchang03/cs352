@@ -88,7 +88,7 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
   frag->header->flags = SOCK352_SYN;
 
   /* send SYN packet */
-  __sock352_send_fragment(conn, frag);
+  sendto(conn->sock352_fd, (char *)frag, sizeof(frag), 0, (struct sockaddr *)&addr, len);
 
   /* change connection state */
   conn->state = SYN_SENT;
@@ -106,6 +106,9 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
   frag->header->sequence_no = initSeq;
   frag->header->ack_no = ack;
   frag->header->flags = SOCK352_ACK;
+  
+  /* send SYN/ACK segment */
+  sendto(conn->sock352_fd, (char *)frag, sizeof(frag), 0, (struct sockaddr *)&addr, len);
   
   /* change connection state */
   conn->state = ESTABLISHED;
