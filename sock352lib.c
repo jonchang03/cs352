@@ -166,22 +166,30 @@ int sock352_close(int fd)
 int sock352_read(int fd, void *buf, int count)
 {
   
-  return SOCK352_SUCCESS;
-
   /* Block waiting for a UDP packet */
-	/* Receive packet function */
+
+	/* Receive packet function: */
+	
 	/* Lock the connection */
 	/* Update transmit list with new ack# */
+	
 	/* Find the place on the recv fragment list */
+	
 	/* Insert the fragment */
+	
 	/* Find the lowest # fragment */ 
+	
 	/* send an ACK with the highest sequence */
+	
 	/* Copy the data from the read pointer */
+	
 	/* unlock */
+	
 	/* Return from the read call. */
+	return SOCK352_SUCCESS;
+
 }
 
-pthread_mutex_t mutex_connection;	
 int sock352_write(int fd, void *buf, int count)
 {
   /* find the connection in hash table */
@@ -189,8 +197,8 @@ int sock352_write(int fd, void *buf, int count)
 
   /* if the window is not full */
   if (conn->nextseqnum < conn->base+conn->window_size) {
-  	/* use mutex to lock the connection */
-  	pthread_mutex_lock (&mutex_connection);
+  	/* use our mutex to lock the connection */
+  	pthread_mutex_lock (&(conn->lock_connection);
 
     /* create a new fragment */
     sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
@@ -208,6 +216,8 @@ int sock352_write(int fd, void *buf, int count)
     MD5Init(&md5_context);
     MD5Update(&md5_context, frag->data, frag->size);
     MD5Final(frag->header->checksum, &md5_context);
+
+    /* add to the transmit list */
 
     /* send packet (header + data) */
     struct sockaddr_in remote_addr; 
@@ -227,7 +237,7 @@ int sock352_write(int fd, void *buf, int count)
     conn->nextseqnum++;
 
     /* unlock the connection and exit */
-    pthread_mutex_unlock (&mutex_connection);
+    pthread_mutex_unlock (&(conn->lock_connection));
     pthread_exit(NULL);
   }
   else
