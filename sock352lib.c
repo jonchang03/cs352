@@ -195,7 +195,9 @@ int sock352_write(int fd, void *buf, int count)
     memset(frag, 0, sizeof(sock352_fragment_t));
     
     /* create a packet header */
-    frag->header.sequence_no = conn->nextseqnum;
+    frag->header = malloc(sizeof(sock352_pkt_hdr_t));
+    memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
+    frag->header->sequence_no = conn->nextseqnum;
 
 		/* include data */
 		    
@@ -216,21 +218,9 @@ int sock352_write(int fd, void *buf, int count)
     remote_addr.sin_addr.s_addr = conn->dest_addr;
     remote_addr.sin_port = conn->dest_port;
     sendto(fd, frag, sizeof(frag), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
-=======
-    
-    /* create a packet */
-    sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
-    memset(frag, 0, sizeof(sock352_fragment_t));
-    frag->header = malloc(sizeof(sock352_pkt_hdr_t));
-    memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
-    frag->header->sequence_no = conn->nextseqnum;
-    
-    //include data
-    //compute checksum
 
-    /* send packet */
     __sock352_send_fragment(conn, frag);
->>>>>>> 0a6dbf12e3e34bdf3f9892521d1c8f9b43335ee6
+
 
     /* record the time sent */
     if (conn->base == conn->nextseqnum) {
