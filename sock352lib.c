@@ -17,11 +17,13 @@ int sock352_init(int udp_port)
     /* timeout thread */
 
     /* global structure for all connections */ 
-    _GLOABAL.active_connections = (sock352_connection_t *) NULL;
-    _GLOABAL.sock352_base_fd = 0;
+
+    global_p = malloc(sizeof(sock352_global_t));
+    global_p->active_connections = (sock352_connection_t *) NULL;
+    global_p->sock352_base_fd = 0;
 
     /* socket port numbers to use */
-    _GLOABAL.sock352_recv_port = SOCK352_DEFAULT_UDP_PORT;
+    global_p->sock352_recv_port = SOCK352_DEFAULT_UDP_PORT;
 
     return SOCK352_SUCCESS;
   }
@@ -46,7 +48,7 @@ int sock352_socket(int domain, int type, int protocol)
   conn->sock352_fd = fd;
 
   /* add connection to the list of active connections */
-  HASH_ADD_INT(_GLOABAL.active_connections, sock352_fd, conn);
+  HASH_ADD_INT(global_p->active_connections, sock352_fd, conn);
   return fd;
 }
 
@@ -54,7 +56,7 @@ int sock352_bind(int fd, sockaddr_sock352_t *addr, socklen_t len)
 {
   /* find the connection in hash table */
   sock352_connection_t * conn;
-  HASH_FIND_INT(_GLOABAL.active_connections, &fd, conn);
+  HASH_FIND_INT(global_p->active_connections, &fd, conn);
 
   /* set up the source address and port in this connection */
   conn->src_addr = addr->sin_addr;
@@ -67,7 +69,7 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
 {
   /* find the connection in hash table */
   sock352_connection_t * conn;
-  HASH_FIND_INT(_GLOABAL.active_connections, &fd, conn);
+  HASH_FIND_INT(global_p->active_connections, &fd, conn);
 
   /* set up the destination address and port in this connection */
   conn->dest_addr = addr->sin_addr;
@@ -90,7 +92,6 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
   /* change connection state */
   conn->state = SYN_SENT;
 
-
   /* receive ACK segment */
   recvfrom(fd, frag, sizeof(frag), 0, (struct sockaddr *)addr, &len);
 
@@ -98,10 +99,10 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
   if (frag->header.ack_no != initSeq + 1) 
     return SOCK352_FAILURE;
 
-  /* set up SYNACK segment */
+  /* set up SYN/ACK segment */
   uint32_t ack = frag->header.sequence_no + 1;
   memset(frag, 0, sizeof(sock352_fragment_t));
-  frag->header.sequence_no = initSeq+1;
+  frag->header.sequence_no = initSeq;
   frag->header.ack_no = ack;
   frag->header.flags = SOCK352_ACK;
   
@@ -116,22 +117,40 @@ int sock352_listen(int fd, int n)
 }
 int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 {
-	/* wait for a connection packet recvfrom() */
-	#define BUFSIZE 2048
-	unsigned char buf[BUFSIZE];     		/* receive buffer */
-	int byte_count;                    	/* # bytes received */
-	byte_count = recvfrom(fd, buf, BUFSIZE, 0, &addr, &len); 
+	
+	/* find the connection in hash table */
+  sock352_connection_t * conn;
+  HASH_FIND_INT(global_p->active_connections, &fd, conn);
 
-	/* set up sequence and acknowledgement numbers */
+  /* set up the destination address and port in this connection */
+  conn->dest_addr = addr->sin_addr;
+  conn->dest_port = addr->sin_port;
+
+  /* wait for a connection packet using recvfrom() */
+  int byte_count;
+	sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
+  memset(frag, 0, sizeof(sock352_fragment_t));
+	byte_count = recvfrom(fd, frag, sizeof(frag), 0, &addr, &len); 
+
+	/* set up sequence numbers */
   srand((unsigned int)(time(NULL)));
-  uint32_t initSeq = rand(); /* generate sequence number */
+  uint32_t seq = rand();
+
+  /* set up acknowledgement number (ACK = SEQ + 1) */
+	uint32_t ack = frag->header.sequence_no + 1;	
+
+	/* set up SYN/ACK segment */
+  frag->header.sequence_no = seq;
+  frag->header.ack_no = ack;
+  frag->header.flags = SOCK352_ACK;
 
 	/* return a SYS/ACK flagged packet */
-
+  sendto(fd, frag, sizeof(frag), 0, (struct sockaddr *)addr, len);
 	
 	/* create empty lists of fragments (receive and send) */
 
 	/* return from accept() call */
+
 }
 
 int sock352_close(int fd)
