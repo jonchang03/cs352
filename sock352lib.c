@@ -181,6 +181,7 @@ int sock352_read(int fd, void *buf, int count)
 	/* Return from the read call. */
 }
 
+pthread_mutex_t mutex_connection;	
 int sock352_write(int fd, void *buf, int count)
 {
   /* find the connection in hash table */
@@ -189,7 +190,6 @@ int sock352_write(int fd, void *buf, int count)
   /* if the window is not full */
   if (conn->nextseqnum < conn->base+conn->window_size) {
   	/* use mutex to lock the connection */
-  	pthread_mutex_t mutex_connection;	
   	pthread_mutex_lock (&mutex_connection);
 
     /* create a new fragment */
