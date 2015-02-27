@@ -1,3 +1,4 @@
+/* sock352lib.h */
 #ifndef SO3CK352LIB_H
 #define SOCK352LIB_H 1
 
