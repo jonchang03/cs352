@@ -171,6 +171,7 @@ int sock352_read(int fd, void *buf, int count)
 	/* Receive packet function: */
 	
 	/* Lock the connection */
+	pthread_mutex_lock (&(conn->lock_connection);
 	/* Update transmit list with new ack# */
 	
 	/* Find the place on the recv fragment list */
