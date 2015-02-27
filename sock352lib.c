@@ -190,7 +190,6 @@ int sock352_write(int fd, void *buf, int count)
 
   /* if the window is not full */
   if (conn->nextseqnum < conn->base+conn->window_size) {
-<<<<<<< HEAD
   	/* lock the connection */
 
     /* create a new fragment */
