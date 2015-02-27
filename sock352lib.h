@@ -49,9 +49,10 @@ typedef struct sock352_connection {
 
 typedef struct sock352_fragment {
   struct sock352_connection *connection;
-  unsigned int size;
-  sock352_pkt_hdr_t header;
-  char data[MAXIMUM_LENGTH];
+  uint32_t size;
+  sock352_pkt_hdr_t *header;
+  uint8_t *data;
+  uint64_t timestamp;
   struct sock352_fragment *next;
   struct sock352_fragment *prev;
 }sock352_fragment_t;
