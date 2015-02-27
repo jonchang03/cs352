@@ -168,19 +168,17 @@ int sock352_read(int fd, void *buf, int count)
   
   return SOCK352_SUCCESS;
 
-  /*
-		-Block waiting for a UDP packet
-		Receive packet function:
-			-Lock the connection
-			-Update transmit list with new ack#
-			-Find the place on the recv fragment list
-			-Insert the fragment
-			-Find the lowest # fragment
-			-send an ACK with the highest sequence
-			-Copy the data from the read pointer
-			-unlock
-			-Return from the read call.
-  */
+  /* Block waiting for a UDP packet */
+	/* Receive packet function */
+	/* Lock the connection */
+	/* Update transmit list with new ack# */
+	/* Find the place on the recv fragment list */
+	/* Insert the fragment */
+	/* Find the lowest # fragment */ 
+	/* send an ACK with the highest sequence */
+	/* Copy the data from the read pointer */
+	/* unlock */
+	/* Return from the read call. */
 }
 
 int sock352_write(int fd, void *buf, int count)
@@ -190,7 +188,9 @@ int sock352_write(int fd, void *buf, int count)
 
   /* if the window is not full */
   if (conn->nextseqnum < conn->base+conn->window_size) {
-  	/* lock the connection */
+  	/* use mutex to lock the connection */
+  	pthread_mutex_t mutex_connection;	
+  	pthread_mutex_lock (&mutex_connection);
 
     /* create a new fragment */
     sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
@@ -226,11 +226,12 @@ int sock352_write(int fd, void *buf, int count)
     }
     conn->nextseqnum++;
 
-    /* unlock the connection */
+    /* unlock the connection and exit */
+    pthread_mutex_unlock (&mutex_connection);
+    pthread_exit(NULL);
   }
   else
     //refuse data to upper level;
-  return SOCK352_SUCCESS;
 
   /*
   	-lock the connection
