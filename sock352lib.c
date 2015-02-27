@@ -117,9 +117,7 @@ int sock352_listen(int fd, int n)
 
 int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 {
-  /* find the connection in hash table */
-  sock352_connection_t * conn;
-  HASH_FIND_INT(global_p->active_connections, &fd, conn);
+  __sock352_find_active_connection(global_p, fd);
 
   /* set up the destination address and port in this connection */
   conn->dest_addr = addr->sin_addr;
@@ -192,9 +190,21 @@ int sock352_write(int fd, void *buf, int count)
     //include data
     //compute checksum
 
-    sendto(fd, frag, sizeof(frag), 0, (struct sockaddr *)xaddr, len);
-    
+    /* send packet */
+    struct sockaddr_in remote_addr; 
+    memset((char *)&remote_addr, 0, sizeof(remote_addr));
+    remote_addr.sin_family = AF_INET;
+    remote_addr.sin_addr.s_addr = conn->dest_addr;
+    remote_addr.sin_port = conn->dest_port;
+    sendto(fd, frag, sizeof(frag), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+
+    if (conn->base == conn->nextseqnum) {
+      //start-timer
+    }
+    conn->nextseqnum++;
   }
+  else
+    //refuse data to upper level;
   return SOCK352_SUCCESS;
 
   /*
@@ -240,7 +250,7 @@ int __sock352_send_expired_fragments(sock352_connection_t *connection)
 {
 
 }
-sock352_connection_t * __sock352_find_active_connection(sock352_global_t *global_p, sock352_pkt_hdr_t *pkt_hdr)
+sock352_connection_t * __sock352_find_active_connection(sock352_global_t *global_p, int fd)
 {
 
 }

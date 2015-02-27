@@ -73,7 +73,7 @@ int __sock352_input_packet(sock352_global_t *global_p);
 int __sock352_send_fragment(sock352_connection_t *connection,sock352_fragment_t *fragment); 
 int __sock352_send_ack(sock352_connection_t *connection);
 int __sock352_send_expired_fragments(sock352_connection_t *connection); 
-sock352_connection_t * __sock352_find_active_connection(sock352_global_t *global_p, sock352_pkt_hdr_t *pkt_hdr); 
+sock352_connection_t * __sock352_find_active_connection(sock352_global_t *global_p, int fd); 
 sock352_connection_t * __sock352_find_accept_connection(sock352_global_t *global_p, sock352_pkt_hdr_t *pkt_hdr);
 int __sock352_connection_return(sock352_global_t *global_p, sock352_pkt_hdr_t * pkt_hdr, sock352_connection_t *connection);
 int __sock352_accept_return(sock352_pkt_hdr_t *pkt_rx_hdr,sock352_connection_t *connection);
