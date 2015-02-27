@@ -57,10 +57,11 @@ typedef struct sock352_fragment {
   struct sock352_fragment *prev;
 }sock352_fragment_t;
 
-struct sock352_GLOBAL {                   /* global structure for all connections */
+typedef struct sock352_global {                   /* global structure for all connections */
   sock352_connection_t *active_connections;
   unsigned int sock352_recv_port;
   unsigned int sock352_base_fd;
-}_GLOABAL;
+}sock352_global_t;
 
+sock352_global_t *global_p;
 #endif
