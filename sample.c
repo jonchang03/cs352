@@ -28,7 +28,7 @@ int sock352_init(int port) {
 
 	/* create the reader thread */
 
-	/* createe the timeout/manager thread */
+	/* create the timeout/manager thread */
 
 	return SOCK352_SUCCESS;
 }

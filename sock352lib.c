@@ -190,6 +190,7 @@ int sock352_read(int fd, void *buf, int count)
 {
   
   return SOCK352_SUCCESS;
+<<<<<<< HEAD
   
   /*
    -Block waiting for a UDP packet
@@ -204,8 +205,23 @@ int sock352_read(int fd, void *buf, int count)
 			-unlock
 			-Return from the read call.
    */
+
+
+  /* Block waiting for a UDP packet */
+	/* Receive packet function */
+	/* Lock the connection */
+	/* Update transmit list with new ack# */
+	/* Find the place on the recv fragment list */
+	/* Insert the fragment */
+	/* Find the lowest # fragment */ 
+	/* send an ACK with the highest sequence */
+	/* Copy the data from the read pointer */
+	/* unlock */
+	/* Return from the read call. */
+
 }
 
+pthread_mutex_t mutex_connection;	
 int sock352_write(int fd, void *buf, int count)
 {
   /* find the connection in hash table */
@@ -213,14 +229,21 @@ int sock352_write(int fd, void *buf, int count)
   
   /* if the window is not full */
   if (conn->nextseqnum < conn->base+conn->window_size) {
+
     
     /* lock the connection */
     
+
+  	/* use mutex to lock the connection */
+  	pthread_mutex_lock (&mutex_connection);
+
+
     /* create a new fragment */
     sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
     memset(frag, 0, sizeof(sock352_fragment_t));
     
     /* create a packet header */
+
     frag->header->sequence_no = conn->nextseqnum;
     
     /* include data */
@@ -235,6 +258,20 @@ int sock352_write(int fd, void *buf, int count)
     md5_calc
     
     
+
+    frag->header = malloc(sizeof(sock352_pkt_hdr_t));
+    memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
+    frag->header->sequence_no = conn->nextseqnum;
+
+		/* include data */
+		    
+    /* create checksum */  
+    MD5_CTX md5_context;
+    MD5Init(&md5_context);
+    MD5Update(&md5_context, frag->data, frag->size);
+    MD5Final(frag->header->checksum, &md5_context);
+
+
     /* send packet (header + data) */
     struct sockaddr_in remote_addr;
     memset((char *)&remote_addr, 0, sizeof(remote_addr));
@@ -242,6 +279,7 @@ int sock352_write(int fd, void *buf, int count)
     remote_addr.sin_addr.s_addr = conn->dest_addr;
     remote_addr.sin_port = conn->dest_port;
     sendto(fd, frag, sizeof(frag), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+
     
     
     /* create a packet */
@@ -258,11 +296,17 @@ int sock352_write(int fd, void *buf, int count)
     __sock352_send_fragment(conn, frag);
     
     
+
+    __sock352_send_fragment(conn, frag);
+
+
+
     /* record the time sent */
     if (conn->base == conn->nextseqnum) {
       //start-timer
     }
     conn->nextseqnum++;
+
     
     /* unlock the connection */
   }
@@ -270,6 +314,15 @@ int sock352_write(int fd, void *buf, int count)
     //refuse data to upper level;
     return SOCK352_SUCCESS;
   
+
+
+    /* unlock the connection and exit */
+    pthread_mutex_unlock (&mutex_connection);
+    pthread_exit(NULL);
+  }
+  else
+    //refuse data to upper level;
+
   /*
   	-lock the connection
   	-create a new fragment
