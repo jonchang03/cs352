@@ -4,9 +4,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
-#include "sock352lib.h"
 #include <time.h>
+#include "sock352lib.h"
 
 int sock352_init(int udp_port)
 {
@@ -115,9 +114,9 @@ int sock352_listen(int fd, int n)
 {
   return listen(fd, n);
 }
+
 int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 {
-	
 	/* find the connection in hash table */
   sock352_connection_t * conn;
   HASH_FIND_INT(global_p->active_connections, &fd, conn);
@@ -149,8 +148,10 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 	
 	/* create empty lists of fragments (receive and send) */
 
-	/* return from accept() call */
 
+
+	/* return from accept() call */
+  return SOCK352_SUCCESS;
 }
 
 int sock352_close(int fd)
@@ -189,3 +190,71 @@ int sock352_write(int fd, void *buf, int count)
   	-unlock the connection
   */
 }
+
+/* Internal Functions */
+int __sock352_init(int remote_port, int local_port)
+{
+
+}
+
+void __sock352_reader_init(void *ptr)
+{
+
+}
+void __sock352_timeout_init(void *ptr)
+{
+
+}
+int __sock352_input_packet(sock352_global_t *global_p)
+{
+
+}
+int __sock352_send_fragment(sock352_connection_t *connection,sock352_fragment_t *fragment)
+{
+
+}
+int __sock352_send_ack(sock352_connection_t *connection)
+{
+
+}
+int __sock352_send_expired_fragments(sock352_connection_t *connection)
+{
+
+}
+sock352_connection_t * __sock352_find_active_connection(sock352_global_t *global_p, sock352_pkt_hdr_t *pkt_hdr)
+{
+
+}
+sock352_connection_t * __sock352_find_accept_connection(sock352_global_t *global_p, sock352_pkt_hdr_t *pkt_hdr)
+{
+
+}
+int __sock352_connection_return(sock352_global_t *global_p, sock352_pkt_hdr_t * pkt_hdr, sock352_connection_t *connection)
+{
+
+}
+int __sock352_accept_return(sock352_pkt_hdr_t *pkt_rx_hdr,sock352_connection_t *connection)
+{
+
+}
+uint64_t __sock352_lapsed_usec(struct timeval * start, struct timeval *end)
+{
+
+}
+int __sock352_add_tx_fragment(sock352_connection_t *connection, sock352_fragment_t *fragment)
+{
+
+}
+int __sock352_remove_tx_fragment(sock352_connection_t * active_connection,sock352_fragment_t *fragment)
+{
+
+}
+int __sock352_enqueue_data_packet(sock352_connection_t *connection,uint8_t *data, int header_size, int data_size)
+{
+
+}
+int __sock352_add_rx_fragment(sock352_connection_t *connection, sock352_fragment_t *fragment)
+{
+
+}
+

@@ -57,11 +57,32 @@ typedef struct sock352_fragment {
   struct sock352_fragment *prev;
 }sock352_fragment_t;
 
-typedef struct sock352_global {                   /* global structure for all connections */
+typedef struct sock352_global {            /* global structure for all connections */
   sock352_connection_t *active_connections;
   unsigned int sock352_recv_port;
   unsigned int sock352_base_fd;
 }sock352_global_t;
 
-sock352_global_t *global_p;
+sock352_global_t *global_p = NULL;
+
+
+/* Internal Functions */
+int __sock352_init(int remote_port, int local_port);
+void __sock352_reader_init(void *ptr);
+void __sock352_timeout_init(void *ptr);
+int __sock352_input_packet(sock352_global_t *global_p);
+int __sock352_send_fragment(sock352_connection_t *connection,sock352_fragment_t *fragment); 
+int __sock352_send_ack(sock352_connection_t *connection);
+int __sock352_send_expired_fragments(sock352_connection_t *connection); 
+sock352_connection_t * __sock352_find_active_connection(sock352_global_t *global_p, sock352_pkt_hdr_t *pkt_hdr); 
+sock352_connection_t * __sock352_find_accept_connection(sock352_global_t *global_p, sock352_pkt_hdr_t *pkt_hdr);
+int __sock352_connection_return(sock352_global_t *global_p, sock352_pkt_hdr_t * pkt_hdr, sock352_connection_t *connection);
+int __sock352_accept_return(sock352_pkt_hdr_t *pkt_rx_hdr,sock352_connection_t *connection);
+uint64_t __sock352_lapsed_usec(struct timeval * start, struct timeval *end);
+int __sock352_add_tx_fragment(sock352_connection_t *connection, sock352_fragment_t *fragment); 
+int __sock352_remove_tx_fragment(sock352_connection_t * active_connection,sock352_fragment_t *fragment);
+int __sock352_enqueue_data_packet(sock352_connection_t *connection,uint8_t *data, int header_size, int data_size);
+int __sock352_add_rx_fragment(sock352_connection_t *connection, sock352_fragment_t *fragment);
+
+
 #endif
