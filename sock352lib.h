@@ -23,7 +23,7 @@
 typedef struct sock352_connection {
   uint32_t state;
 
-  pthread_mutex_t lock;                    /* mutex locks to access the connection */
+  pthread_mutex_t lock_connection;        /* mutex locks to access the connection */
 
   struct sock352_fragment *noAckButTransmt_frags;
   struct sock352_fragment *recvd_frags;
