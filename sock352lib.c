@@ -203,15 +203,11 @@ int sock352_write(int fd, void *buf, int count)
 
 		/* include data */
 		    
-    /* create checksum */
+    /* create checksum */  
     MD5_CTX md5_context;
     MD5Init(&md5_context);
-    MD5Update(&md5_context, str, strlen(str));
-    MD5Final(digest, &md5_context);
-
-		MD5_CTX md5_context;
-		md5_calc
-
+    MD5Update(&md5_context, frag->data, frag->size);
+    MD5Final(frag->header->checksum, &md5_context);
 
     /* send packet (header + data) */
     struct sockaddr_in remote_addr; 
