@@ -28,7 +28,7 @@ typedef struct sock352_connection {
   struct sock352_fragment *noAckButTransmt_frags;
   struct sock352_fragment *recvd_frags;
 
-  struct sock352_fragment * fragments;    /* list of fragments */
+  struct sock352_fragment * frag_list;    /* transmit list of fragments */
   struct sock352_connection *next;        /* list of connections */
   struct sock352_connection *prev;
 
@@ -40,9 +40,14 @@ typedef struct sock352_connection {
   struct in_addr dest_addr;
 
   uint64_t timeout;
+
+  // used by client
   uint64_t base;                          /* the sequence number of the oldest unacknowledged packet */
   uint64_t nextseqnum;                    /* the smallest unused sequence number */
-  uint64_t window_size;                   /* maximum we can send */ 
+  uint64_t window_size;                   /* maximum we can send */
+  
+  // used by server
+  uint64_t expectedseqnum;                /* the expected sequence number */
 
   uint32_t sock352_fd;                
   UT_hash_handle hh;                      /* makes this structure hashable */

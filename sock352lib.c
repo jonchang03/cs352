@@ -137,6 +137,8 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
   /* set up the destination address and port in this connection */
   conn->dest_addr = addr->sin_addr;
   conn->dest_port = addr->sin_port;
+  /* set expected sequence number to 0 */
+  conn->expectedseqnum = 0;
   
   /* receive SYN packet */
   sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
@@ -174,8 +176,8 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
   }
   
   
-  /* create empty lists of fragments (receive and send) */
-  conn->fragments = NULL;			/* important to initialize header to NULL! */
+  /* create empty lists of fragments to receive */
+  conn->frag_list = NULL;			/* important to initialize header to NULL! */
   
   /* return from accept() call */
   return fd;
@@ -189,20 +191,67 @@ int sock352_close(int fd)
 int sock352_read(int fd, void *buf, int count)
 {
   
-  return SOCK352_SUCCESS;
-  
   /* Block waiting for a UDP packet */
   /* Receive packet function */
+  sock352_connection_t * conn = __sock352_find_active_connection(global_p, fd);
+  sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
+  memset(frag, 0, sizeof(sock352_fragment_t));
+  frag->header = malloc(sizeof(sock352_pkt_hdr_t));
+  memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
+
+  if (recvfrom(fd, (char *)frag, sizeof(frag), 0, (struct sockaddr *)&(conn->src_addr), (socklen_t *)sizeof(conn->src_addr)) < 0) {
+    return SOCK352_FAILURE;
+
   /* Lock the connection */
+  pthread_mutex_lock (&conn->lock);
+
+  /* create hash output and ensure packet has not been corrupted (correct checksum)) */
+	/* compute checksum of received data and compare it to the checksum stored in the header */
+	uint16_t digest;
+  MD5_CTX md5_context;
+	MD5Init(&md5_context);
+	MD5Update(&md5_context, frag->data, frag->size);
+	MD5Final(digest, &context);
+
+	/* if packet is not corrupt, and sequence number is correct */
+	if ((digest == frag->header->checksum) && (conn->expectedseqnum == frag->header->sequence_no)) {
+		/* send ACK for packet n */
+
+		/* deliver_data(data) (frag to buf) */
+
+	}			
+	else {
+		/* discard packet */
+
+		/* resend an ACK for the most recently received, in-order packet */
+	}
+ 
+	
   /* Update transmit list with new ack# */
-  /* Find the place on the recv fragment list */
-  /* Insert the fragment */
-  /* Find the lowest # fragment */
-  /* send an ACK with the highest sequence */
-  /* Copy the data from the read pointer */
-  /* unlock */
-  /* Return from the read call. */
   
+  /* Find the place on the recv fragment list */
+  
+  /* Insert the fragment */
+  
+  /* Find the lowest # fragment */
+  
+  /* send an ACK with the highest sequence */
+  
+  /* Copy the data from the read pointer */
+	
+	/*
+	extract(rcvpkt,data)
+	deliver_data(data) (frag to buf)
+	sndpkt = make_pkt(expectedseqnum,ACK,chksum) udt_send(sndpkt)
+	expectedseqnum++
+	*/
+	
+  
+  /* unlock */
+  pthread_mutex_unlock (&conn->lock);
+  pthread_exit(NULL);
+  /* Return from the read call. */
+  return SOCK352_SUCCESS; 
 }
 
 int sock352_write(int fd, void *buf, int count)
@@ -239,6 +288,7 @@ int sock352_write(int fd, void *buf, int count)
     frag->header->flags = 0;
     frag->header->sequence_no = conn->nextseqnum;
     
+ 
 
     
     /* send packet (header + data) */
