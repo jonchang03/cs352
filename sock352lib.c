@@ -188,33 +188,21 @@ int sock352_close(int fd)
 
 int sock352_read(int fd, void *buf, int count)
 {
+  
+  return SOCK352_SUCCESS;
+  
   /* Block waiting for a UDP packet */
-
-	/* Receive packet function: */
-	sock352_connection_t * conn = __sock352_find_active_connection(global_p, fd);
-	if (recvfrom(fd, (char *)conn->fragments, sizeof(conn->fragments), 0, (struct sockaddr *)&(conn->src_addr), sizeof(conn->src_addr)) < 0) 
-    return SOCK352_FAILURE;
-
-	/* Lock the connection */
-	pthread_mutex_lock (&(conn->lock_connection);
-    
-	/* Update transmit list with new ack# */
-	
-	/* Find the place on the recv fragment list */
-	
-	/* Insert the fragment */
-	
-	/* Find the lowest # fragment */ 
-	
-	/* send an ACK with the highest sequence */
-	
-	/* Copy the data from the read pointer */
-	
-	/* unlock */
-	pthread_mutex_unlock (&mutex_connection);
-  pthread_exit(NULL);
-	/* Return from the read call. */
-	return SOCK352_SUCCESS;
+  /* Receive packet function */
+  /* Lock the connection */
+  /* Update transmit list with new ack# */
+  /* Find the place on the recv fragment list */
+  /* Insert the fragment */
+  /* Find the lowest # fragment */
+  /* send an ACK with the highest sequence */
+  /* Copy the data from the read pointer */
+  /* unlock */
+  /* Return from the read call. */
+  
 }
 
 int sock352_write(int fd, void *buf, int count)
@@ -251,20 +239,9 @@ int sock352_write(int fd, void *buf, int count)
     frag->header->flags = 0;
     frag->header->sequence_no = conn->nextseqnum;
     
-<<<<<<< HEAD
-    //include data
-    //compute checksum
-    
-    /* send packet */
-    __sock352_send_fragment(conn, frag);
-    
-    
-      
-=======
 
     
     /* send packet (header + data) */
->>>>>>> 9d2ccbdc4a8261e2bf12c38ece853079f2082b84
     __sock352_send_fragment(conn, frag);
     
     if (conn->base == conn->nextseqnum) {
