@@ -217,49 +217,29 @@ int sock352_read(int fd, void *buf, int count)
 	return SOCK352_SUCCESS;
 }
 
-pthread_mutex_t mutex_connection;
 int sock352_write(int fd, void *buf, int count)
 {
   /* find the connection in hash table */
   sock352_connection_t * conn = __sock352_find_active_connection(global_p, fd);
   
+  /* use mutex to lock the connection */
+  pthread_mutex_lock (&conn->lock);
+  
+  
+  
   /* if the window is not full */
   if (conn->nextseqnum < conn->base+conn->window_size) {
-    
-    
-    /* lock the connection */
-    
-    
-    /* use mutex to lock the connection */
-    pthread_mutex_lock (&mutex_connection);
-    
     
     /* create a new fragment */
     sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
     memset(frag, 0, sizeof(sock352_fragment_t));
-    
     /* create a packet header */
-    
-    frag->header->sequence_no = conn->nextseqnum;
-    
-    /* include data */
-    
-    /* create checksum */
-    MD5_CTX md5_context;
-    MD5Init(&md5_context);
-    MD5Update(&md5_context, str, strlen(str));
-    MD5Final(digest, &md5_context);
-    
-    MD5_CTX md5_context;
-    md5_calc
-    
-    
-    
     frag->header = malloc(sizeof(sock352_pkt_hdr_t));
     memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
-    frag->header->sequence_no = conn->nextseqnum;
     
     /* include data */
+    frag->data = buf;
+    frag->size = count;
     
     /* create checksum */
     MD5_CTX md5_context;
@@ -267,24 +247,11 @@ int sock352_write(int fd, void *buf, int count)
     MD5Update(&md5_context, frag->data, frag->size);
     MD5Final(frag->header->checksum, &md5_context);
     
-    
-    /* send packet (header + data) */
-    struct sockaddr_in remote_addr;
-    memset((char *)&remote_addr, 0, sizeof(remote_addr));
-    remote_addr.sin_family = AF_INET;
-    remote_addr.sin_addr.s_addr = conn->dest_addr;
-    remote_addr.sin_port = conn->dest_port;
-    sendto(fd, frag, sizeof(frag), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
-    
-    
-    
-    /* create a packet */
-    sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
-    memset(frag, 0, sizeof(sock352_fragment_t));
-    frag->header = malloc(sizeof(sock352_pkt_hdr_t));
-    memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
+    /* set up header */
+    frag->header->flags = 0;
     frag->header->sequence_no = conn->nextseqnum;
     
+<<<<<<< HEAD
     //include data
     //compute checksum
     
@@ -293,11 +260,13 @@ int sock352_write(int fd, void *buf, int count)
     
     
       
+=======
+
+    
+    /* send packet (header + data) */
+>>>>>>> 9d2ccbdc4a8261e2bf12c38ece853079f2082b84
     __sock352_send_fragment(conn, frag);
     
-    
-    
-    /* record the time sent */
     if (conn->base == conn->nextseqnum) {
       //start-timer
     }
@@ -313,7 +282,7 @@ int sock352_write(int fd, void *buf, int count)
   
   
   /* unlock the connection and exit */
-  pthread_mutex_unlock (&mutex_connection);
+  pthread_mutex_unlock (&conn->lock);
   pthread_exit(NULL);
 }
 else
