@@ -4,7 +4,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <time.h>
+#include <sys/time.h>
 #include <openssl/md5.h>
 #include "sock352lib.h"
 
@@ -113,7 +113,15 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
   /* change connection state */
   conn->state = ESTABLISHED;
   
+  /* set up connection */
+  conn->base = 0;
+  conn->nextseqnum = 0;
+  conn->window_size = WINDOW_SIZE;
+  
+  
   /* create lists */
+  conn->frag_list = NULL;
+  conn->wait_to_be_sent = NULL;
   
   /* start timer */
   return SOCK352_SUCCESS;
@@ -185,48 +193,45 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 
 int sock352_close(int fd)
 {
-  return close(fd);
+  return 1;
 }
 
 int sock352_read(int fd, void *buf, int count)
 {
-  
   /* Block waiting for a UDP packet */
   /* Receive packet function */
   sock352_connection_t * conn = __sock352_find_active_connection(global_p, fd);
+  
+  if (conn->state != ESTABLISHED) {
+    return SOCK352_FAILURE;
+  }
+  
   sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
   memset(frag, 0, sizeof(sock352_fragment_t));
   frag->header = malloc(sizeof(sock352_pkt_hdr_t));
   memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
-
+  
   if (recvfrom(fd, (char *)frag, sizeof(frag), 0, (struct sockaddr *)&(conn->src_addr), (socklen_t *)sizeof(conn->src_addr)) < 0) {
     return SOCK352_FAILURE;
-
+  }
   /* Lock the connection */
   pthread_mutex_lock (&conn->lock);
-
-  /* create hash output and ensure packet has not been corrupted (correct checksum)) */
-	/* compute checksum of received data and compare it to the checksum stored in the header */
-	uint16_t digest;
-  MD5_CTX md5_context;
-	MD5Init(&md5_context);
-	MD5Update(&md5_context, frag->data, frag->size);
-	MD5Final(digest, &context);
-
-	/* if packet is not corrupt, and sequence number is correct */
-	if ((digest == frag->header->checksum) && (conn->expectedseqnum == frag->header->sequence_no)) {
-		/* send ACK for packet n */
-
-		/* deliver_data(data) (frag to buf) */
-
-	}			
-	else {
-		/* discard packet */
-
-		/* resend an ACK for the most recently received, in-order packet */
-	}
- 
-	
+  
+  
+  /* if packet is not corrupt, and sequence number is correct */
+  if ((__sock352_verify_checksum(frag)) && (conn->expectedseqnum == frag->header->sequence_no)) {
+    /* send ACK for packet n */
+    
+    /* deliver_data(data) (frag to buf) */
+    
+  }
+  else {
+    /* discard packet */
+    
+    /* resend an ACK for the most recently received, in-order packet */
+  }
+  
+  
   /* Update transmit list with new ack# */
   
   /* Find the place on the recv fragment list */
@@ -238,20 +243,20 @@ int sock352_read(int fd, void *buf, int count)
   /* send an ACK with the highest sequence */
   
   /* Copy the data from the read pointer */
-	
-	/*
-	extract(rcvpkt,data)
-	deliver_data(data) (frag to buf)
-	sndpkt = make_pkt(expectedseqnum,ACK,chksum) udt_send(sndpkt)
-	expectedseqnum++
-	*/
-	
+  
+  /*
+   extract(rcvpkt,data)
+   deliver_data(data) (frag to buf)
+   sndpkt = make_pkt(expectedseqnum,ACK,chksum) udt_send(sndpkt)
+   expectedseqnum++
+   */
+  
   
   /* unlock */
   pthread_mutex_unlock (&conn->lock);
   pthread_exit(NULL);
   /* Return from the read call. */
-  return SOCK352_SUCCESS; 
+  return SOCK352_SUCCESS;
 }
 
 int sock352_write(int fd, void *buf, int count)
@@ -262,34 +267,44 @@ int sock352_write(int fd, void *buf, int count)
   /* use mutex to lock the connection */
   pthread_mutex_lock (&conn->lock);
   
+  /* connection should be built before transmit data */
+  if (conn->state != ESTABLISHED) {
+    printf("connection is not built before transmit data");
+    return SOCK352_FAILURE;
+  }
   
+  /* create a new fragment */
+  sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
+  memset(frag, 0, sizeof(sock352_fragment_t));
+  /* create a packet header */
+  frag->header = malloc(sizeof(sock352_pkt_hdr_t));
+  memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
+  
+  /* include data */
+  frag->data = buf;
+  /* set up header */
+  frag->header->flags = 0;
+  frag->header->payload_len = count;
+  /* create checksum */
+  __sock352_compute_checksum(frag);
+
+  /* append it to waiting to be sent list */
+  DL_APPEND(conn->wait_to_be_sent, frag);
   
   /* if the window is not full */
-  if (conn->nextseqnum < conn->base+conn->window_size) {
+  while (conn->nextseqnum < conn->base+conn->window_size) {
+    sock352_fragment_t *elt, *del = conn->wait_to_be_sent;
+    int count;
     
-    /* create a new fragment */
-    sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
-    memset(frag, 0, sizeof(sock352_fragment_t));
-    /* create a packet header */
-    frag->header = malloc(sizeof(sock352_pkt_hdr_t));
-    memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
+    /* delete the first fragment in wait to be sent list */
+    DL_DELETE(conn->wait_to_be_sent, del);
+    del->header->sequence_no = conn->nextseqnum;
+    struct timeval time;
+    gettimeofday(&time, (struct timezone *) NULL);
+    del->timestamp = (uint64_t) time.tv_sec *  (uint64_t)(1000000) + (uint64_t )time.tv_usec;
     
-    /* include data */
-    frag->data = buf;
-    frag->size = count;
-    
-    /* create checksum */
-    MD5_CTX md5_context;
-    MD5Init(&md5_context);
-    MD5Update(&md5_context, frag->data, frag->size);
-    MD5Final(frag->header->checksum, &md5_context);
-    
-    /* set up header */
-    frag->header->flags = 0;
-    frag->header->sequence_no = conn->nextseqnum;
-    
- 
-
+    /* apeend to send list */
+    DL_APPEND(conn->frag_list, del);
     
     /* send packet (header + data) */
     __sock352_send_fragment(conn, frag);
@@ -297,34 +312,19 @@ int sock352_write(int fd, void *buf, int count)
     if (conn->base == conn->nextseqnum) {
       //start-timer
     }
-    conn->nextseqnum++;
     
-    
-    /* unlock the connection */
+    DL_COUNT(conn->wait_to_be_sent, elt, count);
+    if (count == 0) break;
+   
+     conn->nextseqnum++;
   }
-  else
-    //refuse data to upper level;
-    return SOCK352_SUCCESS;
-  
-  
+
   
   /* unlock the connection and exit */
   pthread_mutex_unlock (&conn->lock);
   pthread_exit(NULL);
-}
-else
-//refuse data to upper level;
-
-/*
- -lock the connection
- -create a new fragment
- -create a new packet header for this fragment
- -add it to the transmit list
- -send the header + data
- -record the time sent
- -unlock the connection
- */
-return SOCK352_SUCCESS;
+  
+  return frag->header->payload_len;
 }
 
 
@@ -339,14 +339,17 @@ void __sock352_reader_init(void *ptr)
 {
   
 }
+
 void __sock352_timeout_init(void *ptr)
 {
   
 }
+
 int __sock352_input_packet(sock352_global_t *global_p)
 {
   return 0;
 }
+
 int __sock352_send_fragment(sock352_connection_t *connection,sock352_fragment_t *fragment)
 {
   struct sockaddr_in addr;
@@ -354,56 +357,85 @@ int __sock352_send_fragment(sock352_connection_t *connection,sock352_fragment_t 
   addr.sin_family = AF_INET;
   addr.sin_addr = connection->dest_addr;
   addr.sin_port = connection->dest_port;
-  
   sendto(connection->sock352_fd, (char *)fragment, sizeof(fragment), 0, (struct sockaddr *)&addr, sizeof(addr));
   
   return 0;
 }
+
 int __sock352_send_ack(sock352_connection_t *connection)
 {
   return 0;
 }
+
 int __sock352_send_expired_fragments(sock352_connection_t *connection)
 {
   return 0;
 }
+
 sock352_connection_t * __sock352_find_active_connection(sock352_global_t *global_p, int fd)
 {
   sock352_connection_t *conn;
   HASH_FIND_INT(global_p->active_connections, &fd, conn);
   return conn;
 }
+
 sock352_connection_t * __sock352_find_accept_connection(sock352_global_t *global_p, sock352_pkt_hdr_t *pkt_hdr)
 {
   return 0;
 }
+
 int __sock352_connection_return(sock352_global_t *global_p, sock352_pkt_hdr_t * pkt_hdr, sock352_connection_t *connection)
 {
   return 0;
 }
+
 int __sock352_accept_return(sock352_pkt_hdr_t *pkt_rx_hdr,sock352_connection_t *connection)
 {
   return 0;
 }
+
 uint64_t __sock352_lapsed_usec(struct timeval * start, struct timeval *end)
 {
   return 0;
 }
+
 int __sock352_add_tx_fragment(sock352_connection_t *connection, sock352_fragment_t *fragment)
 {
   return 0;
 }
+
 int __sock352_remove_tx_fragment(sock352_connection_t * active_connection,sock352_fragment_t *fragment)
 {
   return 0;
 }
+
 int __sock352_enqueue_data_packet(sock352_connection_t *connection,uint8_t *data, int header_size, int data_size)
 {
   return 0;
 }
+
 int __sock352_add_rx_fragment(sock352_connection_t *connection, sock352_fragment_t *fragment)
 {
   return 0;
 }
+
+void __sock352_compute_checksum(sock352_fragment_t *fragment)
+{
+  MD5_CTX md5_context;
+  MD5Init(&md5_context);
+  MD5Update(&md5_context, fragment->data, fragment->header->payload_len);
+  MD5Final(fragment->header->checksum, &md5_context);
+}
+
+int __sock352_verify_checksum(sock352_fragment_t *fragment)
+{
+  uint16_t verify;
+  MD5_CTX md5_context;
+  MD5Init(&md5_context);
+  MD5Update(&md5_context, fragment->data, fragment->header->payload_len);
+  MD5Final(verify, &md5_context);
+  return (verify == fragment->header->checksum);
+}
+
 
 
