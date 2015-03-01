@@ -76,7 +76,7 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
   conn->base = 0;
   conn->nextseqnum = 0;
   conn->window_size = WINDOW_SIZE;
-  conn->timeout = 0.2;
+  conn->timeout = 0.2 * (uint64_t)(1000000);
   
   /* generate initial sequence number */
   srand((unsigned int)(time(NULL)));
@@ -291,7 +291,7 @@ int sock352_write(int fd, void *buf, int count)
     __sock352_send_fragment(conn, frag);
     
     if (conn->base == conn->nextseqnum) {
-      //start-timer
+      __sock352_timeout_init(conn);
     }
     
     DL_COUNT(conn->wait_to_be_sent, elt, count);
@@ -323,7 +323,8 @@ void __sock352_reader_init(void *ptr)
 
 void __sock352_timeout_init(void *ptr)
 {
-  
+  pthread_t tid;
+  pthread_create(&tid, NULL, timer, ptr);
 }
 
 int __sock352_input_packet(sock352_global_t *global_p)
@@ -357,6 +358,7 @@ int __sock352_send_expired_fragments(sock352_connection_t *connection)
   addr.sin_addr = connection->dest_addr;
   addr.sin_port = connection->dest_port;
   
+  /* resend every fragment in the send list, and reset their timestamp */
   sock352_fragment_t *elt;
   DL_FOREACH(connection->frag_list, elt) {
     sendto(connection->sock352_fd, (char *)elt, sizeof(elt), 0, (struct sockaddr *)&addr, sizeof(addr));
@@ -404,7 +406,7 @@ uint64_t __sock352_get_timestamp()
 {
   struct timeval time;
   gettimeofday(&time, (struct timezone *) NULL);
-  return ((uint64_t) time.tv_sec + (uint64_t )time.tv_usec / (uint64_t)(1000000));
+  return ((uint64_t) time.tv_sec  * (uint64_t)(1000000) + (uint64_t )time.tv_usec);
 }
 
 void *receiver(void* arg)
@@ -442,16 +444,24 @@ void *receiver(void* arg)
 void * timer(void * arg)
 {
   sock352_connection_t *conn = (sock352_connection_t*) arg;
-  pthread_mutex_lock(&conn->lock);
   
-  uint64_t current_time = __sock352_get_timestamp();
-  /* if timeout event occurs */
-  if (current_time - conn->frag_list->timestamp > conn->timeout) {
-    __sock352_send_expired_fragments(conn);
+  
+  while (1) {
+    pthread_mutex_lock(&conn->lock);
+    uint64_t current_time = __sock352_get_timestamp();
+    
+    /* when timeout event occurs */
+    if (current_time - conn->frag_list->timestamp > conn->timeout) {
+      __sock352_send_expired_fragments(conn);
+    }
+    
+    /* when send buffer is empty, terminate this thread */
+    if (conn->base == conn->nextseqnum) {
+      break;
+    }
+    pthread_mutex_unlock(&conn->lock);
   }
 
-  
-  
   return NULL;
 }
 
