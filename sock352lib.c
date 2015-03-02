@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/time.h>
+#include <openssl/hmac.h>
 #include <openssl/md5.h>
 #include "sock352lib.h"
 
@@ -415,18 +416,18 @@ uint64_t __sock352_lapsed_usec(struct timeval * start, struct timeval *end)
 void __sock352_compute_checksum(sock352_fragment_t *fragment)
 {
   MD5_CTX md5_context;
-  MD5Init(&md5_context);
-  MD5Update(&md5_context, fragment->data, fragment->header->payload_len);
-  MD5Final(fragment->header->checksum, &md5_context);
+  MD5_Init(&md5_context);
+  MD5_Update(&md5_context, fragment->data, fragment->header->payload_len);
+  MD5_Final(fragment->header->checksum, &md5_context);
 }
 
 int __sock352_verify_checksum(sock352_fragment_t *fragment)
 {
   uint16_t verify;
   MD5_CTX md5_context;
-  MD5Init(&md5_context);
-  MD5Update(&md5_context, fragment->data, fragment->header->payload_len);
-  MD5Final(verify, &md5_context);
+  MD5_Init(&md5_context);
+  MD5_Update(&md5_context, fragment->data, fragment->header->payload_len);
+  MD5_Final(verify, &md5_context);
   return (verify == fragment->header->checksum);
 }
 
