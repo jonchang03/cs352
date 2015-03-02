@@ -417,7 +417,7 @@ void __sock352_compute_checksum(sock352_fragment_t *fragment)
   MD5_CTX md5_context;
   MD5_Init(&md5_context);
   MD5_Update(&md5_context, fragment->data, fragment->header->payload_len);
-  MD5Final(&fragment->header->checksum, &md5_context);
+  MD5_Final(&fragment->header->checksum, &md5_context);
 }
 
 int __sock352_verify_checksum(sock352_fragment_t *fragment)
@@ -426,7 +426,7 @@ int __sock352_verify_checksum(sock352_fragment_t *fragment)
   MD5_CTX md5_context;
   MD5_Init(&md5_context);
   MD5_Update(&md5_context, fragment->data, fragment->header->payload_len);
-  MD5Final(&verify, &md5_context);
+  MD5_Final(&verify, &md5_context);
   return (verify == fragment->header->checksum);
 }
 
