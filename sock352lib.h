@@ -62,9 +62,9 @@ typedef struct sock352_fragment {
 
 typedef struct sock352_global {            /* global structure for all connections */
   sock352_connection_t *active_connections;
-  unsigned int sock352_recv_port;
+  uint32_t sock352_remote_port;
+  uint32_t sock352_local_port;
   unsigned int sock352_base_fd;
-  pthread_t t;
 }sock352_global_t;
 
 sock352_global_t *global_p = NULL;
@@ -72,7 +72,7 @@ sock352_global_t *global_p = NULL;
 
 /* Internal Functions */
 int __sock352_init(int remote_port, int local_port);
-void __sock352_reader_init(void *ptr);
+void __sock352_receiver_init(void *ptr);
 void __sock352_timeout_init(void *ptr);
 int __sock352_input_packet(sock352_global_t *global_p);
 sock352_fragment_t * __sock352_create_fragment();

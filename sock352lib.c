@@ -14,21 +14,28 @@ int sock352_init(int udp_port)
     return SOCK352_FAILURE;
   }
   else {
-    /* global structure for all connections */
     
+    /* global structure for all connections */
     global_p = malloc(sizeof(sock352_global_t));
     global_p->active_connections = (sock352_connection_t *) NULL;
-    global_p->sock352_base_fd = 0;
     
     /* socket port numbers to use */
-    global_p->sock352_recv_port = SOCK352_DEFAULT_UDP_PORT;
-    
+    global_p->sock352_remote_port = SOCK352_DEFAULT_UDP_PORT;
+    global_p->sock352_local_port = SOCK352_DEFAULT_UDP_PORT;
+    global_p->sock352_base_fd = 0;
     return SOCK352_SUCCESS;
   }
 }
 
 int sock352_init2(int remote_port, int local_port)
 {
+  /* global structure for all connections */
+  global_p = malloc(sizeof(sock352_global_t));
+  global_p->active_connections = (sock352_connection_t *) NULL;
+  
+  /* socket port numbers to use */
+  global_p->sock352_remote_port = remote_port;
+  global_p->sock352_local_port = local_port;
   return SOCK352_SUCCESS;
 }
 
