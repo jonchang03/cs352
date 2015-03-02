@@ -29,7 +29,7 @@ int sock352_init(int udp_port)
 
 int sock352_init2(int remote_port, int local_port)
 {
-	return SOCK352_SUCCESS;
+  return SOCK352_SUCCESS;
 }
 
 int sock352_socket(int domain, int type, int protocol)
@@ -284,7 +284,7 @@ int sock352_write(int fd, void *buf, int count)
   frag->header->payload_len = count;
   /* create checksum */
   __sock352_compute_checksum(frag);
-
+  
   /* append it to waiting to be sent list */
   DL_APPEND(conn->wait_to_be_sent, frag);
   
@@ -296,7 +296,7 @@ int sock352_write(int fd, void *buf, int count)
     /* delete the first fragment in wait to be sent list */
     DL_DELETE(conn->wait_to_be_sent, del);
     del->header->sequence_no = conn->nextseqnum;
-
+    
     del->timestamp = __sock352_get_timestamp();
     
     /* apeend to send list */
@@ -311,10 +311,10 @@ int sock352_write(int fd, void *buf, int count)
     
     DL_COUNT(conn->wait_to_be_sent, elt, count);
     if (count == 0) break;
-   
-     conn->nextseqnum++;
+    
+    conn->nextseqnum++;
   }
-
+  
   
   /* unlock the connection and exit */
   pthread_mutex_unlock (&conn->lock);
@@ -415,18 +415,18 @@ uint64_t __sock352_lapsed_usec(struct timeval * start, struct timeval *end)
 void __sock352_compute_checksum(sock352_fragment_t *fragment)
 {
   MD5_CTX md5_context;
-  MD5_Init(&md5_context);
-  MD5_Update(&md5_context, fragment->data, fragment->header->payload_len);
-  MD5_Final(fragment->header->checksum, &md5_context);
+  MD5Init(&md5_context);
+  MD5Update(&md5_context, fragment->data, fragment->header->payload_len);
+  MD5Final(&fragment->header->checksum, &md5_context);
 }
 
 int __sock352_verify_checksum(sock352_fragment_t *fragment)
 {
   uint16_t verify;
   MD5_CTX md5_context;
-  MD5_Init(&md5_context);
-  MD5_Update(&md5_context, fragment->data, fragment->header->payload_len);
-  MD5_Final(verify, &md5_context);
+  MD5Init(&md5_context);
+  MD5Update(&md5_context, fragment->data, fragment->header->payload_len);
+  MD5Final(&verify, &md5_context);
   return (verify == fragment->header->checksum);
 }
 
@@ -489,7 +489,7 @@ void * timer(void * arg)
     }
     pthread_mutex_unlock(&conn->lock);
   }
-
+  
   return NULL;
 }
 
