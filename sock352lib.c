@@ -27,6 +27,11 @@ int sock352_init(int udp_port)
   }
 }
 
+int sock352_init2(int remote_port, int local_port)
+{
+	return SOCK352_SUCCESS;
+}
+
 int sock352_socket(int domain, int type, int protocol)
 {
   /* ensure that the domain and type are correct */
