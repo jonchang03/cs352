@@ -27,16 +27,11 @@ typedef struct sock352_connection {
   
   pthread_mutex_t lock;        /* mutex locks to access the connection */
   
-  struct sock352_fragment *noAckButTransmt_frags;
-  struct sock352_fragment *recvd_frags;
-  
   struct sock352_fragment * frag_list;    /* transmit list of fragments */
   struct sock352_fragment * wait_to_be_sent;    /* waiting to be sent list of fragments */
   struct sock352_connection *next;        /* list of connections */
   struct sock352_connection *prev;
   
-  uint32_t local_port;                    /* sockets for local and remote ports */
-  uint32_t remote_port;
   uint16_t src_port;                      /* source and destination UDP ports */
   uint16_t dest_port;
   struct in_addr src_addr;
@@ -58,7 +53,6 @@ typedef struct sock352_connection {
 
 typedef struct sock352_fragment {
   struct sock352_connection *connection;
-  uint32_t size;
   sock352_pkt_hdr_t *header;
   uint8_t *data;
   uint64_t timestamp;
@@ -81,11 +75,11 @@ int __sock352_init(int remote_port, int local_port);
 void __sock352_reader_init(void *ptr);
 void __sock352_timeout_init(void *ptr);
 int __sock352_input_packet(sock352_global_t *global_p);
+sock352_fragment_t * __sock352_create_fragment();
 int __sock352_send_fragment(sock352_connection_t *connection,sock352_fragment_t *fragment);
 int __sock352_send_ack(sock352_connection_t *connection);
 int __sock352_send_expired_fragments(sock352_connection_t *connection);
 sock352_connection_t * __sock352_find_active_connection(sock352_global_t *global_p, int fd);
-sock352_connection_t * __sock352_find_accept_connection(sock352_global_t *global_p, sock352_pkt_hdr_t *pkt_hdr);
 uint64_t __sock352_lapsed_usec(struct timeval * start, struct timeval *end);
 void __sock352_compute_checksum(sock352_fragment_t *fragment);
 int __sock352_verify_checksum(sock352_fragment_t *fragment);

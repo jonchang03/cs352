@@ -5,7 +5,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/time.h>
-#include <openssl/hmac.h>
 #include <openssl/md5.h>
 #include "sock352lib.h"
 
@@ -15,8 +14,6 @@ int sock352_init(int udp_port)
     return SOCK352_FAILURE;
   }
   else {
-    /* timeout thread */
-    
     /* global structure for all connections */
     
     global_p = malloc(sizeof(sock352_global_t));
@@ -28,11 +25,6 @@ int sock352_init(int udp_port)
     
     return SOCK352_SUCCESS;
   }
-}
-
-int sock352_init2(int remote_port, int local_port)
-{
-	return SOCK352_SUCCESS:
 }
 
 int sock352_socket(int domain, int type, int protocol)
@@ -55,6 +47,7 @@ int sock352_socket(int domain, int type, int protocol)
   
   /* add connection to the list of active connections */
   HASH_ADD_INT(global_p->active_connections, sock352_fd, conn);
+  
   return fd;
 }
 
@@ -89,33 +82,40 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
   uint32_t initSeq = rand();
   
   /* set up first SYN segment */
-  sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
-  memset(frag, 0, sizeof(sock352_fragment_t));
-  frag->header = malloc(sizeof(sock352_pkt_hdr_t));
-  memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
+  sock352_fragment_t *frag = __sock352_create_fragment();
   frag->header->sequence_no = initSeq;
   frag->header->ack_no = 0;
   frag->header->flags = SOCK352_SYN;
   
   /* send SYN packet */
-  sendto(conn->sock352_fd, (char *)frag, sizeof(frag), 0, (struct sockaddr *)&addr, len);
+  if (sendto(conn->sock352_fd, (char *)frag, sizeof(frag), 0, (struct sockaddr *)&addr, len) < 0) {
+    printf("Eorror in sending SYN packet");
+    return SOCK352_FAILURE;
+  }
   
   /* change connection state */
   conn->state = SYN_SENT;
   
   /* receive ACK segment */
-  recvfrom(fd, (char *)frag, sizeof(frag), 0, (struct sockaddr *)addr, &len);
+  memset(frag, 0, sizeof(sock352_fragment_t));
+  
+  if (recvfrom(fd, (char *)frag, sizeof(frag), 0, (struct sockaddr *)addr, &len) < 0) {
+    printf("Error in receiving the SYNACK packet");
+    return SOCK352_FAILURE;
+  }
   
   /* test the acknowledgement number */
-  if (frag->header->ack_no != initSeq + 1 || frag->header->flags != (SOCK352_ACK | SOCK352_SYN))
+  if (frag->header->ack_no != initSeq + 1 || frag->header->flags != (SOCK352_ACK | SOCK352_SYN)) {
+    printf("Eorror in received SYNACK packet");
     return SOCK352_FAILURE;
+  }
   
   /* set up the third segment */
   uint64_t ack = frag->header->sequence_no + 1;
   memset(frag, 0, sizeof(sock352_fragment_t));
   frag->header->sequence_no = initSeq;
   frag->header->ack_no = ack;
-  frag->header->flags = 0;
+  frag->header->flags = SOCK352_ACK;
   
   /* send the third segment */
   sendto(conn->sock352_fd, (char *)frag, sizeof(frag), 0, (struct sockaddr *)&addr, len);
@@ -127,7 +127,6 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
   conn->frag_list = NULL;
   conn->wait_to_be_sent = NULL;
   
-  /* start timer */
   return SOCK352_SUCCESS;
 }
 
@@ -153,17 +152,14 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
   conn->expectedseqnum = 0;
   
   /* receive SYN packet */
-  sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
-  memset(frag, 0, sizeof(sock352_fragment_t));
-  frag->header = malloc(sizeof(sock352_pkt_hdr_t));
-  memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
+  sock352_fragment_t *frag = __sock352_create_fragment();
   
   /* change connection state */
   if (recvfrom(fd, (char *)frag, sizeof(frag), 0, (struct sockaddr *)addr, (socklen_t *)len) < 0) {
+    printf("Error in receiving SYN packet");
     return SOCK352_FAILURE;
-  } else {
-    conn->state = SYN_RCVD;
   }
+  conn->state = SYN_RCVD;
   
   /* set up sequence numbers */
   srand((unsigned int)(time(NULL)));
@@ -173,6 +169,7 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
   uint64_t ack = frag->header->sequence_no + 1;
   
   /* set up SYN/ACK segment */
+  memset(frag, 0, sizeof(sock352_fragment_t));
   frag->header->sequence_no = seq;
   frag->header->ack_no = ack;
   frag->header->flags = SOCK352_ACK | SOCK352_SYN;
@@ -181,12 +178,18 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
   sendto(conn->sock352_fd, (char *)frag, sizeof(frag), 0, (struct sockaddr *)&addr, *len);
   
   /* change connection state */
+  memset(frag, 0, sizeof(sock352_fragment_t));
   if (recvfrom(fd, (char *)frag, sizeof(frag), 0, (struct sockaddr *)addr, (socklen_t *)len) < 0) {
+    printf("Error in receiving the ACK packet");
     return SOCK352_FAILURE;
-  } else {
-    conn->state = ESTABLISHED;
   }
   
+  /* test the acknowledgement number */
+  if (frag->header->ack_no != seq + 1 || frag->header->flags != SOCK352_ACK) {
+    printf("Eorror in received ACK packet");
+    return SOCK352_FAILURE;
+  }
+  conn->state = ESTABLISHED;
   
   /* create empty lists of fragments to receive */
   conn->frag_list = NULL;			/* important to initialize header to NULL! */
@@ -197,6 +200,9 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
 
 int sock352_close(int fd)
 {
+  /* If there is only one  */
+  sock352_connection_t *conn = __sock352_find_active_connection(global_p, fd);
+  free(conn);
   return 1;
 }
 
@@ -210,10 +216,7 @@ int sock352_read(int fd, void *buf, int count)
     return SOCK352_FAILURE;
   }
   
-  sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
-  memset(frag, 0, sizeof(sock352_fragment_t));
-  frag->header = malloc(sizeof(sock352_pkt_hdr_t));
-  memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
+  sock352_fragment_t *frag = __sock352_create_fragment();
   
   struct sockaddr_in addr;
   memset((char *)&addr, 0, sizeof(addr));
@@ -232,17 +235,18 @@ int sock352_read(int fd, void *buf, int count)
   /* if packet is not corrupt, and sequence number is correct */
   if ((__sock352_verify_checksum(frag)) && (conn->expectedseqnum == frag->header->sequence_no)) {
     conn->expectedseqnum++;
-    
+    DL_APPEND(conn->frag_list, frag);
   }
   __sock352_send_ack(conn);
   
-  
-  DL_APPEND(conn->frag_list, frag);
-  
+  /*copy data to buffer*/
+  sock352_fragment_t *del = conn->frag_list;
+  DL_DELETE(conn->frag_list, del);
+  memcpy(buf, del->data, del->header->payload_len);
   
   /* unlock */
   pthread_mutex_unlock (&conn->lock);
-  pthread_exit(NULL);
+  
   /* Return from the read call. */
   return SOCK352_SUCCESS;
 }
@@ -309,7 +313,6 @@ int sock352_write(int fd, void *buf, int count)
   
   /* unlock the connection and exit */
   pthread_mutex_unlock (&conn->lock);
-  pthread_exit(NULL);
   
   return frag->header->payload_len;
 }
@@ -322,9 +325,10 @@ int __sock352_init(int remote_port, int local_port)
   return 0;
 }
 
-void __sock352_reader_init(void *ptr)
+void __sock352_receiver_init(void *ptr)
 {
-  
+  pthread_t tid;
+  pthread_create(&tid, NULL, receiver, ptr);
 }
 
 void __sock352_timeout_init(void *ptr)
@@ -338,6 +342,14 @@ int __sock352_input_packet(sock352_global_t *global_p)
   return 0;
 }
 
+sock352_fragment_t * __sock352_create_fragment()
+{
+  sock352_fragment_t *frag = malloc(sizeof(sock352_fragment_t));
+  memset(frag, 0, sizeof(sock352_fragment_t));
+  frag->header = malloc(sizeof(sock352_pkt_hdr_t));
+  memset(frag->header, 0, sizeof(sock352_pkt_hdr_t));
+  return frag;
+}
 
 int __sock352_send_fragment(sock352_connection_t *connection,sock352_fragment_t *fragment)
 {
@@ -353,6 +365,16 @@ int __sock352_send_fragment(sock352_connection_t *connection,sock352_fragment_t 
 
 int __sock352_send_ack(sock352_connection_t *connection)
 {
+  struct sockaddr_in addr;
+  sock352_fragment_t *fragment = __sock352_create_fragment();
+  fragment->header->flags = SOCK352_ACK;
+  fragment->header->ack_no = connection->expectedseqnum;
+  
+  memset((char *)&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr = connection->dest_addr;
+  addr.sin_port = connection->dest_port;
+  sendto(connection->sock352_fd, (char *)fragment, sizeof(fragment), 0, (struct sockaddr *)&addr, sizeof(addr));
   return 0;
 }
 
@@ -380,11 +402,6 @@ sock352_connection_t * __sock352_find_active_connection(sock352_global_t *global
   return conn;
 }
 
-sock352_connection_t * __sock352_find_accept_connection(sock352_global_t *global_p, sock352_pkt_hdr_t *pkt_hdr)
-{
-  return 0;
-}
-
 uint64_t __sock352_lapsed_usec(struct timeval * start, struct timeval *end)
 {
   return 0;
@@ -393,18 +410,18 @@ uint64_t __sock352_lapsed_usec(struct timeval * start, struct timeval *end)
 void __sock352_compute_checksum(sock352_fragment_t *fragment)
 {
   MD5_CTX md5_context;
-  MD5_Init(&md5_context);
-  MD5_Update(&md5_context, fragment->data, fragment->header->payload_len);
-  MD5_Final(fragment->header->checksum, &md5_context);
+  MD5Init(&md5_context);
+  MD5Update(&md5_context, fragment->data, fragment->header->payload_len);
+  MD5Final(fragment->header->checksum, &md5_context);
 }
 
 int __sock352_verify_checksum(sock352_fragment_t *fragment)
 {
   uint16_t verify;
   MD5_CTX md5_context;
-  MD5_Init(&md5_context);
-  MD5_Update(&md5_context, fragment->data, fragment->header->payload_len);
-  MD5_Final(verify, &md5_context);
+  MD5Init(&md5_context);
+  MD5Update(&md5_context, fragment->data, fragment->header->payload_len);
+  MD5Final(verify, &md5_context);
   return (verify == fragment->header->checksum);
 }
 
@@ -435,7 +452,7 @@ void *receiver(void* arg)
   }
   
   /* ack_no == the first sequence_no */
-  if (frag->header->ack_no == conn->frag_list->header->sequence_no) {
+  if (frag->header->flags == SOCK352_ACK && frag->header->ack_no == conn->frag_list->header->sequence_no) {
     sock352_fragment_t *del = conn->frag_list;
     DL_DELETE(conn->frag_list, del);
     free(del);
