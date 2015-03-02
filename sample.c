@@ -43,7 +43,7 @@ int sock352_socket(int domain, int type, int protocol) {
 		return SOCK352_FAILURE;
 	}
 
-	ir (type != SOCK_STREAM) {
+	if (type != SOCK_STREAM) {
 		return SOCK352_FAILURE;
 	}
 
