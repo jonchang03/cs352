@@ -65,7 +65,7 @@ extern int sock352_socket(int domain, int type, int protocol);
 extern int sock352_bind(int fd, sockaddr_sock352_t *addr, socklen_t len);
 extern int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len);
 extern int sock352_listen(int fd, int n);
-extern int sock352_accept(int _fd, sockaddr_sock352_t *addr, int *len);
+extern int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len);
 extern int sock352_close(int fd);
 extern int sock352_read(int fd, void *buf, int count);
 extern int sock352_write(int fd, void *buf, int count);

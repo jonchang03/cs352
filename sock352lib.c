@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -78,7 +78,7 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
   /* set up connection */
   sock352_connection_t *conn;
   HASH_FIND_INT(all_connections, &fd, conn);
-  memcpy(&conn->src, &remote_addr, sizeof(remote_addr));
+  memcpy(&conn->dest, &remote_addr, sizeof(remote_addr));
   
   /*
   struct timeval timeout={0,2};
@@ -205,18 +205,12 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
   
   sock352_connection_t *conn;
   HASH_FIND_INT(all_connections, &fd, conn);
-  conn->src_addr.s_addr = local_addr.sin_addr.s_addr;
-  conn->src_port = local_addr.sin_port;
-  conn->dest_addr.s_addr = remote_addr.sin_addr.s_addr;
-  conn->dest_port = remote_addr.sin_port;
+  memcpy(&conn->dest, &remote_addr, sizeof(remote_addr));;
   
   sock352_connection_t *new_conn = malloc(sizeof(sock352_connection_t));
   bzero(new_conn, sizeof(sock352_connection_t));
   new_conn->sock352_fd = sock352_fd_base++;
-  new_conn->src_addr.s_addr = conn->src_addr.s_addr;
-  new_conn->src_port = conn->src_port;
-  new_conn->dest_addr.s_addr = conn->dest_addr.s_addr;
-  new_conn->dest_port = conn->dest_port;
+  memcpy(&new_conn->dest, &remote_addr, sizeof(remote_addr));
   pthread_mutex_init(&new_conn->lock, NULL);
   HASH_ADD_INT(all_connections, sock352_fd, new_conn);
   
@@ -274,13 +268,6 @@ int sock352_close(int fd)
   sock352_connection_t *conn;
   HASH_FIND_INT(all_connections, &fd, conn);
   
-  /* the real remote socket address */
-  sockaddr_sock352_t real_addr;
-  real_addr.sin_family = AF_INET;
-  real_addr.sin_addr.s_addr = conn->dest_addr.s_addr;
-  real_addr.sin_port = sock352_remote_port;
-  socklen_t real_len= sizeof(real_addr);
-  
   /*
   struct timeval timeout={0,2};
   if (setsockopt(master_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
@@ -291,17 +278,17 @@ int sock352_close(int fd)
   sock352_fragment_t *FIN1_frag = __sock352_create_fragment();
   FIN1_frag->header.flags = SOCK352_FIN;
   
-  if (sendto(master_fd, (char *)FIN1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&real_addr, real_len) < 0) {
+  if (sendto(master_fd, (char *)FIN1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
     printf("Eorror in sending FIN packet");
     return SOCK352_FAILURE;
   }
   
   sock352_fragment_t *FIN2_frag = __sock352_create_fragment();
   while (1) {
-    if (recvfrom(master_fd, (char *)FIN2_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&real_addr, &real_len) < 0) {
+    if (recvfrom(master_fd, (char *)FIN2_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
       /* timeout occurs, resend */
       if (errno == EAGAIN) {
-        if (sendto(master_fd, (char *)FIN1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&real_addr, real_len) < 0) {
+        if (sendto(master_fd, (char *)FIN1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
           printf("Eorror in resending FIN packet");
           return SOCK352_FAILURE;
         }
@@ -310,7 +297,7 @@ int sock352_close(int fd)
     else {
       if (FIN2_frag->header.flags != SOCK352_FIN) {
         printf("Eorror in received FIN packet");
-        if (sendto(master_fd, (char *)FIN1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&real_addr, real_len) < 0) {
+        if (sendto(master_fd, (char *)FIN1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
           printf("Eorror in resending FIN packet");
           return SOCK352_FAILURE;
         }
@@ -323,17 +310,17 @@ int sock352_close(int fd)
   sock352_fragment_t *ACK1_frag = __sock352_create_fragment();
   FIN1_frag->header.flags = SOCK352_ACK;
   
-  if (sendto(master_fd, (char *)ACK1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&real_addr, real_len) < 0) {
+  if (sendto(master_fd, (char *)ACK1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
     printf("Eorror in sending ACK packet");
     return SOCK352_FAILURE;
   }
   
   sock352_fragment_t *ACK2_frag = __sock352_create_fragment();
   while (1) {
-    if (recvfrom(master_fd, (char *)ACK2_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&real_addr, &real_len) < 0) {
+    if (recvfrom(master_fd, (char *)ACK2_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
       /* timeout occurs, resend */
       if (errno == EAGAIN) {
-        if (sendto(master_fd, (char *)ACK1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&real_addr, real_len) < 0) {
+        if (sendto(master_fd, (char *)ACK1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
           printf("Eorror in resending ACK packet");
           return SOCK352_FAILURE;
         }
@@ -342,7 +329,7 @@ int sock352_close(int fd)
     else {
       if (ACK2_frag->header.flags != SOCK352_ACK) {
         printf("Eorror in received ACK packet");
-        if (sendto(master_fd, (char *)ACK1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&real_addr, real_len) < 0) {
+        if (sendto(master_fd, (char *)ACK1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
           printf("Eorror in resending ACK packet");
           return SOCK352_FAILURE;
         }
@@ -409,12 +396,6 @@ int sock352_write(int fd, void *buf, int count)
   /* use mutex to lock the connection */
   pthread_mutex_lock (&conn->lock);
 
-  /* the real remote socket address */
-  struct sockaddr_in remote_addr;
-  remote_addr.sin_family = AF_INET;
-  remote_addr.sin_addr.s_addr = conn->dest_addr.s_addr;
-  remote_addr.sin_port = conn->dest_port;
-  int remote_len = sizeof(remote_addr);
   
   while (1) {
     /* if the window is not full */
@@ -424,13 +405,15 @@ int sock352_write(int fd, void *buf, int count)
       frag->header.flags = 0;
       frag->header.payload_len = count;
       __sock352_compute_checksum(frag);
+      printf("%u\n", frag->header.checksum);
+      printf("%u\n", frag->header.payload_len);
       frag->header.sequence_no = conn->nextseqnum;
       frag->timestamp = __sock352_get_timestamp();
       ret = count;
       /* apeend to send list */
       DL_APPEND(conn->send_list, frag);
       
-      if (sendto(master_fd, (char *)frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&remote_addr, remote_len) < 0) {
+      if (sendto(master_fd, (char *)frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
         printf("Eorror in sending packet");
         return SOCK352_FAILURE;
       }
@@ -467,11 +450,12 @@ void *receiver(void* arg)
   while (1) {
     sock352_fragment_t *frag = __sock352_create_fragment();
     if (recvfrom(master_fd, (char *)frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&remote_addr, &remote_len) < 0) {
-      fprintf(stderr, "errno %d: %s\n",errno, strerror(errno));
       printf("Eorror in receiving packet\n");
     }
     else {
-      printf("received packet");
+      printf("received packet\n");
+      printf("%u\n", frag->header.checksum);
+      printf("%u\n", frag->header.payload_len);
       if (frag->header.flags == 0 && __sock352_verify_checksum(frag) && frag->header.sequence_no == conn->expectedseqnum) {
         printf("%d\n", frag->header.payload_len);
         pthread_mutex_lock (&conn->lock);
@@ -553,18 +537,12 @@ void __sock352_destroy_fragment(sock352_fragment_t *frag)
 
 int __sock352_send_ack(sock352_connection_t *conn)
 {
-  /* the real remote socket address */
-  struct sockaddr_in remote_addr;
-  remote_addr.sin_family = AF_INET;
-  remote_addr.sin_addr.s_addr = conn->dest_addr.s_addr;
-  remote_addr.sin_port = conn->dest_port;
-  int remote_len = sizeof(remote_addr);
-  
   sock352_fragment_t *frag = __sock352_create_fragment();
   frag->header.flags = SOCK352_ACK;
+  __sock352_compute_checksum(frag);
   frag->header.ack_no = conn->expectedseqnum;
   
-  if (sendto(master_fd, (char *)frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&remote_addr, remote_len) < 0) {
+  if (sendto(master_fd, (char *)frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
     printf("Eorror in sending ACK");
   }
   return 0;
@@ -572,17 +550,10 @@ int __sock352_send_ack(sock352_connection_t *conn)
 
 int __sock352_send_expired_fragments(sock352_connection_t *conn)
 {
-  /* the real remote socket address */
-  struct sockaddr_in remote_addr;
-  remote_addr.sin_family = AF_INET;
-  remote_addr.sin_addr.s_addr = conn->dest_addr.s_addr;
-  remote_addr.sin_port = conn->dest_port;
-  int remote_len = sizeof(remote_addr);
-  
   /* resend every fragment in the send list, and reset their timestamp */
   sock352_fragment_t *elt;
   DL_FOREACH(conn->send_list, elt) {
-    if (sendto(master_fd, (char *)elt, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&remote_addr, remote_len) < 0) {
+    if (sendto(master_fd, (char *)elt, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
       printf("Eorror in sending packet");
       return SOCK352_FAILURE;
     }
