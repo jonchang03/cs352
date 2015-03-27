@@ -404,7 +404,7 @@ int sock352_write(int fd, void *buf, int count)
       memcpy(frag->data, buf, count);
       frag->header.flags = 0;
       frag->header.payload_len = count;
-      __sock352_compute_checksum(frag);
+      frag->header.checksum = __sock352_compute_checksum(frag);
       printf("%u\n", frag->header.checksum);
       printf("%u\n", frag->header.payload_len);
       frag->header.sequence_no = conn->nextseqnum;
@@ -539,7 +539,7 @@ int __sock352_send_ack(sock352_connection_t *conn)
 {
   sock352_fragment_t *frag = __sock352_create_fragment();
   frag->header.flags = SOCK352_ACK;
-  __sock352_compute_checksum(frag);
+  frag->header.checksum = __sock352_compute_checksum(frag);
   frag->header.ack_no = conn->expectedseqnum;
   
   if (sendto(master_fd, (char *)frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
@@ -567,6 +567,7 @@ uint64_t __sock352_lapsed_usec(struct timeval * start, struct timeval *end)
   return 0;
 }
 
+/*
 void __sock352_compute_checksum(sock352_fragment_t *fragment)
 {
   MD5_CTX md5_context;
@@ -582,6 +583,33 @@ int __sock352_verify_checksum(sock352_fragment_t *fragment)
   MD5_Init(&md5_context);
   MD5_Update(&md5_context, fragment->data, fragment->header.payload_len);
   MD5_Final(&verify, &md5_context);
+  return (verify == fragment->header.checksum);
+}
+*/
+// unsigned short cksum(struct ip *ip, int len) 
+
+uint16_t __sock352_compute_checksum(sock352_fragment_t *fragment) {
+  int len = fragment->header.payload_len;
+
+  uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
+  while(len > 1){
+    sum += *((uint16_t*) fragment)++;
+    if(sum & 0x80000000)   /* if high order bit set, fold */
+      sum = (sum & 0xFFFF) + (sum >> 16);
+    len -= 2;
+  }
+
+  if(len)       
+    sum += (uint16_t) *(uint32_t *)fragment;
+  
+  while(sum>>16) /* take care of left over byte */
+    sum = (sum & 0xFFFF) + (sum >> 16);
+  return ~sum;
+}
+
+int __sock352_verify_checksum(sock352_fragment_t *fragment)
+{
+  uint16_t verify = __sock352_compute_checksum(fragment);
   return (verify == fragment->header.checksum);
 }
 

@@ -76,7 +76,7 @@ int __sock352_send_fragment(sock352_connection_t *connection,sock352_fragment_t 
 int __sock352_send_ack(sock352_connection_t *connection);
 int __sock352_send_expired_fragments(sock352_connection_t *connection);
 uint64_t __sock352_lapsed_usec(struct timeval * start, struct timeval *end);
-void __sock352_compute_checksum(sock352_fragment_t *fragment);
+uint16_t __sock352_compute_checksum(sock352_fragment_t *fragment);
 int __sock352_verify_checksum(sock352_fragment_t *fragment);
 uint64_t __sock352_get_timestamp();
 void *receiver(void* arg);
