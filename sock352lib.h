@@ -21,11 +21,11 @@
 #define LAST_ACK 10
 
 #define WINDOW_SIZE 5;
+#define BUFSIZE 8192
 
 typedef struct sock352_fragment {
-  struct sock352_connection *connection;
-  sock352_pkt_hdr_t *header;
-  uint8_t *data;
+  sock352_pkt_hdr_t header;
+  uint8_t data[BUFSIZE];
   uint64_t timestamp;
   struct sock352_fragment *next;
   struct sock352_fragment *prev;
@@ -39,10 +39,12 @@ typedef struct sock352_connection {
   struct sock352_connection *next;        /* list of connections */
   struct sock352_connection *prev;
   
-  uint16_t src_port;                      /* source and destination UDP ports */
-  uint16_t dest_port;
-  struct in_addr src_addr;
-  struct in_addr dest_addr;
+  //uint16_t src_port;                      /* source and destination UDP ports */
+  //uint16_t dest_port;
+  //struct in_addr src_addr;
+  //struct in_addr dest_addr;
+  struct sockaddr_in src;
+  struct sockaddr_in dest;
   
   uint64_t timeout;
   

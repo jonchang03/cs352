@@ -96,6 +96,7 @@ int main(int argc, char *argv[]) {
 		output_filename = NULL;
 		/* set defaults */
 		udp_port = SOCK352_DEFAULT_UDP_PORT;
+    local_port = remote_port = 0;
 		int client_addr_len;
 		int socket_closed;
 		int zero_bytes,bw;
