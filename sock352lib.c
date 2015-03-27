@@ -405,8 +405,6 @@ int sock352_write(int fd, void *buf, int count)
       frag->header.flags = 0;
       frag->header.payload_len = count;
       frag->header.checksum = __sock352_compute_checksum(frag);
-      printf("%u\n", frag->header.checksum);
-      printf("%u\n", frag->header.payload_len);
       frag->header.sequence_no = conn->nextseqnum;
       frag->timestamp = __sock352_get_timestamp();
       ret = count;
@@ -454,8 +452,6 @@ void *receiver(void* arg)
     }
     else {
       printf("received packet\n");
-      printf("%u\n", frag->header.checksum);
-      printf("%u\n", frag->header.payload_len);
       if (frag->header.flags == 0 && __sock352_verify_checksum(frag) && frag->header.sequence_no == conn->expectedseqnum) {
         printf("%d\n", frag->header.payload_len);
         pthread_mutex_lock (&conn->lock);
@@ -567,39 +563,19 @@ uint64_t __sock352_lapsed_usec(struct timeval * start, struct timeval *end)
   return 0;
 }
 
-/*
-void __sock352_compute_checksum(sock352_fragment_t *fragment)
-{
-  MD5_CTX md5_context;
-  MD5_Init(&md5_context);
-  MD5_Update(&md5_context, fragment->data, fragment->header.payload_len);
-  MD5_Final(&fragment->header.checksum, &md5_context);
-}
-
-int __sock352_verify_checksum(sock352_fragment_t *fragment)
-{
-  uint16_t verify;
-  MD5_CTX md5_context;
-  MD5_Init(&md5_context);
-  MD5_Update(&md5_context, fragment->data, fragment->header.payload_len);
-  MD5_Final(&verify, &md5_context);
-  return (verify == fragment->header.checksum);
-}
-*/
-// unsigned short cksum(struct ip *ip, int len) 
-
 uint16_t __sock352_compute_checksum(sock352_fragment_t *fragment) {
   int len = fragment->header.payload_len;
-
+  
   uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
+  uint16_t *frag = (uint16_t *)fragment;
   while(len > 1){
-    sum += *((uint16_t*) fragment)++;
+    sum += *frag++;
     if(sum & 0x80000000)   /* if high order bit set, fold */
       sum = (sum & 0xFFFF) + (sum >> 16);
     len -= 2;
   }
-
-  if(len)       
+  
+  if(len)
     sum += (uint16_t) *(uint32_t *)fragment;
   
   while(sum>>16) /* take care of left over byte */
