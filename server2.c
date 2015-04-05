@@ -116,11 +116,14 @@ int main(int argc, char *argv[], char *envp) {
 		/* Parse the arguments to get: */
 		opterr = 0;
 
-		while ((c = getopt (argc, argv, "c:u:l:r:")) != -1) {
+		while ((c = getopt (argc, argv, "c:o:u:l:r:")) != -1) {
 			switch (c) {
 		      case 'c':
 		        cs352_port = atoi(optarg);
 		        break;
+          	case 'o':
+            		output_filename = optarg;
+            		break;
 		      case 'u':
 		        udp_port = atoi(optarg);
 		        break;
