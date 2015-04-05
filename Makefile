@@ -42,9 +42,12 @@ CFLAGS= -g -O0 -I. -I./include
 DEPS = sock352.h sock352-int.h 
 CLIENT_OBJ = client.o sock352lib.o 
 SERVER_OBJ = server.o sock352lib.o 
+CLIENT2_OBJ = client2.o sock352lib.o 
+SERVER2_OBJ = server2.o sock352lib.o 
+
 LIBS = -lssl -lcrypto -lm -lpthread
 
-all: client server 
+all: client server client2 server2
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
@@ -54,9 +57,14 @@ client: $(CLIENT_OBJ)
 
 server: $(SERVER_OBJ) 
 	gcc -o $@ $^ $(CFLAGS) $(LIBS)
-	
+
+client2: $(CLIENT2_OBJ)
+	gcc -o $@ $^ $(CFLAGS) $(LIBS) 
+
+server2: $(SERVER2_OBJ) 
+	gcc -o $@ $^ $(CFLAGS) $(LIBS)
+
 .PHONY: clean
 
 clean:
-	rm -f client server *.o core  
-	
+	rm -f client server client2 server2 *.o core  

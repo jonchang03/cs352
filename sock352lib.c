@@ -36,6 +36,10 @@ int sock352_init2(int remote_port, int local_port)
   return SOCK352_SUCCESS;
 }
 
+int sock352_init3(int remote_port,int local_port, char *envp[] ) {
+  return SOCK352_SUCCESS;
+}
+
 int sock352_socket(int domain, int type, int protocol)
 {
   /* ensure that the domain and type are correct */
@@ -45,12 +49,8 @@ int sock352_socket(int domain, int type, int protocol)
   if (type != SOCK_STREAM) {
     return SOCK352_FAILURE;
   }
-  sock352_connection_t *conn = malloc(sizeof(sock352_connection_t));
-  bzero(conn, sizeof(sock352_connection_t));
-  master_fd = socket(AF_INET, SOCK_DGRAM, protocol);
-  conn->sock352_fd = sock352_fd_base++;
-  pthread_mutex_init(&conn->lock, NULL);
-  HASH_ADD_INT(all_connections, sock352_fd, conn);
+  master_fd = socket(AF_INET, SOCK_DGRAM, 0);
+  sock352_connection_t *conn = __sock352_create_connection();
   return conn->sock352_fd;
 }
 
@@ -103,8 +103,6 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
     return SOCK352_FAILURE;
   }
   
-  printf("sent SYN\n");
-  
   /* receive SYNACK segment */
   sock352_fragment_t *SYNACK_frag = __sock352_create_fragment();
   while (1) {
@@ -131,9 +129,6 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
     }
   }
   
-  printf("received SYNACK\n");
-
-  
   /* set up the third segment */
   sock352_fragment_t *ACK_frag = __sock352_create_fragment();
   ACK_frag->header.sequence_no = SYN_frag->header.sequence_no;
@@ -145,8 +140,6 @@ int sock352_connect(int fd, sockaddr_sock352_t *addr, socklen_t len)
     printf("Eorror in sending ACK packet");
     return SOCK352_FAILURE;
   }
-  
-  printf("sent ACK\n");
   
   conn->base = 1;
   conn->nextseqnum = 1;
@@ -200,19 +193,13 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
     bzero(SYN_frag, sizeof(sock352_fragment_t));
   }
   
-  printf("received SYN\n");
-
-  
   sock352_connection_t *conn;
   HASH_FIND_INT(all_connections, &fd, conn);
+  conn->passive = 1;
   memcpy(&conn->dest, &remote_addr, sizeof(remote_addr));;
   
-  sock352_connection_t *new_conn = malloc(sizeof(sock352_connection_t));
-  bzero(new_conn, sizeof(sock352_connection_t));
-  new_conn->sock352_fd = sock352_fd_base++;
+  sock352_connection_t *new_conn = __sock352_create_connection();
   memcpy(&new_conn->dest, &remote_addr, sizeof(remote_addr));
-  pthread_mutex_init(&new_conn->lock, NULL);
-  HASH_ADD_INT(all_connections, sock352_fd, new_conn);
   
   /* set up SYN/ACK segment */
   sock352_fragment_t *SYNACK_frag = __sock352_create_fragment();
@@ -236,14 +223,10 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
     return SOCK352_FAILURE;
   }
   
-  printf("sent SYNACK\n");
-  
   sock352_fragment_t *ACK_frag = __sock352_create_fragment();
   if (recvfrom(master_fd, (char *)ACK_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&remote_addr, &remote_len) < 0) {
         return SOCK352_FAILURE;
   }
-  
-  printf("received ACK\n");
   
   __sock352_destroy_fragment(SYN_frag);
   __sock352_destroy_fragment(SYNACK_frag);
@@ -258,7 +241,7 @@ int sock352_accept(int fd, sockaddr_sock352_t *addr, int *len)
   new_conn->send_list = NULL;			/* important to initialize header to NULL! */
   new_conn->recv_list = NULL;
   
-  __sock352_receiver_init(&fd);
+  __sock352_receiver_init(&new_conn->sock352_fd);
   /* return from accept() call */
   return new_conn->sock352_fd;
 }
@@ -268,118 +251,73 @@ int sock352_close(int fd)
   sock352_connection_t *conn;
   HASH_FIND_INT(all_connections, &fd, conn);
   
-  /*
-  struct timeval timeout={0,2};
-  if (setsockopt(master_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
-  {
-    perror("fail to setsockopt");
-    exit(-1);
-  }*/
-  sock352_fragment_t *FIN1_frag = __sock352_create_fragment();
-  FIN1_frag->header.flags = SOCK352_FIN;
+  pthread_mutex_lock(&conn->lock);
   
-  if (sendto(master_fd, (char *)FIN1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
-    printf("Eorror in sending FIN packet");
-    return SOCK352_FAILURE;
-  }
-  
-  sock352_fragment_t *FIN2_frag = __sock352_create_fragment();
-  while (1) {
-    if (recvfrom(master_fd, (char *)FIN2_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
-      /* timeout occurs, resend */
-      if (errno == EAGAIN) {
-        if (sendto(master_fd, (char *)FIN1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
-          printf("Eorror in resending FIN packet");
-          return SOCK352_FAILURE;
-        }
+  if (conn->passive == 0) {
+    sock352_fragment_t *FIN_frag = __sock352_create_fragment();
+    FIN_frag->header.flags = SOCK352_FIN;
+    
+    if (sendto(master_fd, (char *)FIN_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
+      printf("Eorror in sending FIN packet");
+      return SOCK352_FAILURE;
+    }
+    __sock352_destroy_fragment(FIN_frag);
+    
+    printf("FIN sent\n");
+    
+    while (1) {
+    if (conn->close == 1) {
+      sock352_fragment_t *elt;
+      int recv_count, send_count;
+      DL_COUNT(conn->recv_list, elt, recv_count);
+      DL_COUNT(conn->send_list, elt, send_count);
+      if (!recv_count && !send_count) {
+        break;
       }
     }
     else {
-      if (FIN2_frag->header.flags != SOCK352_FIN) {
-        printf("Eorror in received FIN packet");
-        if (sendto(master_fd, (char *)FIN1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
-          printf("Eorror in resending FIN packet");
-          return SOCK352_FAILURE;
-        }
-      }
-      else
-        break;
+      pthread_mutex_unlock(&conn->lock);
+      sleep(1);
+      pthread_mutex_lock(&conn->lock);
     }
   }
-  
-  sock352_fragment_t *ACK1_frag = __sock352_create_fragment();
-  FIN1_frag->header.flags = SOCK352_ACK;
-  
-  if (sendto(master_fd, (char *)ACK1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
-    printf("Eorror in sending ACK packet");
-    return SOCK352_FAILURE;
   }
-  
-  sock352_fragment_t *ACK2_frag = __sock352_create_fragment();
-  while (1) {
-    if (recvfrom(master_fd, (char *)ACK2_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
-      /* timeout occurs, resend */
-      if (errno == EAGAIN) {
-        if (sendto(master_fd, (char *)ACK1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
-          printf("Eorror in resending ACK packet");
-          return SOCK352_FAILURE;
-        }
-      }
-    }
-    else {
-      if (ACK2_frag->header.flags != SOCK352_ACK) {
-        printf("Eorror in received ACK packet");
-        if (sendto(master_fd, (char *)ACK1_frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
-          printf("Eorror in resending ACK packet");
-          return SOCK352_FAILURE;
-        }
-      }
-      else
-        break;
-    }
+  pthread_mutex_unlock(&conn->lock);
+  sleep(5);
+  __sock352_destroy_connection(conn);
+  if (fd == 0) {
+    close(master_fd);
+    all_connections = NULL;
   }
-  __sock352_destroy_fragment(FIN1_frag);
-  __sock352_destroy_fragment(FIN2_frag);
-  __sock352_destroy_fragment(ACK1_frag);
-  __sock352_destroy_fragment(ACK2_frag);
-  
-  /* all fragments are reveived*/
-
   return SOCK352_SUCCESS;
 }
 
 int sock352_read(int fd, void *buf, int count)
 {
-  int ret;
+  int ret = 0;
   sock352_connection_t * conn;
   HASH_FIND_INT(all_connections, &fd, conn);
-  
-  /* Lock the connection */
   pthread_mutex_lock (&conn->lock);
   
   sock352_fragment_t *elt;
   int frag_count;
-  DL_COUNT(conn->recv_list, elt, frag_count);
-  
-
   while (1) {
+    DL_COUNT(conn->recv_list, elt, frag_count);
     if (frag_count != 0) {
       /*copy data to buffer*/
       sock352_fragment_t *frag = conn->recv_list;
       ret = frag->header.payload_len;
-      printf("%d\n", ret);
       memcpy(buf, frag->data, ret);
       DL_DELETE(conn->recv_list, frag);
       __sock352_destroy_fragment(frag);
       break;
     }
     else {
-      pthread_mutex_unlock (&conn->lock);
+      pthread_mutex_unlock(&conn->lock);
       sleep(1);
-      pthread_mutex_lock (&conn->lock);
+      pthread_mutex_lock(&conn->lock);
     }
   }
-  
   pthread_mutex_unlock (&conn->lock);
 
   /* Return from the read call. */
@@ -394,44 +332,35 @@ int sock352_write(int fd, void *buf, int count)
   HASH_FIND_INT(all_connections, &fd, conn);
   
   /* use mutex to lock the connection */
-  pthread_mutex_lock (&conn->lock);
-
+  pthread_mutex_lock(&conn->lock);
   
-  while (1) {
-    /* if the window is not full */
-    if (conn->nextseqnum < conn->base+conn->window_size) {
-      sock352_fragment_t *frag = __sock352_create_fragment();
-      memcpy(frag->data, buf, count);
-      frag->header.flags = 0;
-      frag->header.payload_len = count;
-      frag->header.checksum = __sock352_compute_checksum(frag);
-      frag->header.sequence_no = conn->nextseqnum;
-      frag->timestamp = __sock352_get_timestamp();
-      ret = count;
-      /* apeend to send list */
-      DL_APPEND(conn->send_list, frag);
-      
-      if (sendto(master_fd, (char *)frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
-        printf("Eorror in sending packet");
-        return SOCK352_FAILURE;
-      }
-      
-      printf("sent packet\n");
-      
-      if (conn->base == conn->nextseqnum) {
-        __sock352_timeout_init(&fd);
-      }
-      conn->nextseqnum++;
-      pthread_mutex_unlock (&conn->lock);
-      break;
-    }
-    else {
-      pthread_mutex_unlock (&conn->lock);
-      sleep(1);
-      pthread_mutex_lock (&conn->lock);
-    }
+  /* if the window is full, block for signal */
+  if (conn->nextseqnum == conn->base+conn->window_size) {
+    pthread_cond_wait(&conn->base_change, &conn->lock);
+  }
+  sock352_fragment_t *frag = __sock352_create_fragment();
+  memcpy(frag->data, buf, count);
+  frag->header.flags = 0;
+  frag->header.payload_len = count;
+  frag->header.checksum = __sock352_compute_checksum(frag);
+  frag->header.sequence_no = conn->nextseqnum;
+  frag->timestamp = __sock352_get_timestamp();
+  /* apeend to send list */
+  DL_APPEND(conn->send_list, frag);
+  
+  if (sendto(master_fd, (char *)frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
+    printf("Eorror in sending packet");
+    return SOCK352_FAILURE;
   }
   
+  printf("sent packet\n");
+  
+  if (conn->base == conn->nextseqnum) {
+    __sock352_timer_init(&fd);
+  }
+  conn->nextseqnum++;
+  pthread_mutex_unlock (&conn->lock);
+  ret = count;
   return ret;
 }
 
@@ -442,39 +371,45 @@ void *receiver(void* arg)
   int fd = *((int*)arg);
   sock352_connection_t *conn;
   HASH_FIND_INT(all_connections, &fd, conn);
+  size_t bytes_count;
   
   struct sockaddr_in remote_addr;
   socklen_t remote_len= sizeof(remote_addr);
   while (1) {
     sock352_fragment_t *frag = __sock352_create_fragment();
-    if (recvfrom(master_fd, (char *)frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&remote_addr, &remote_len) < 0) {
-      printf("Eorror in receiving packet\n");
+    if ((bytes_count = recvfrom(master_fd, (char *)frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&remote_addr, &remote_len)) == -1) {
+      perror("Eorror in receiving packet\n");
     }
+    /*else if (bytes_count == 0) {
+      pthread_exit(NULL);
+    }*/
     else {
-      printf("received packet\n");
+      pthread_mutex_lock (&conn->lock);
       if (frag->header.flags == 0 && __sock352_verify_checksum(frag) && frag->header.sequence_no == conn->expectedseqnum) {
-        printf("%d\n", frag->header.payload_len);
-        pthread_mutex_lock (&conn->lock);
+        printf("received packet\n");
         DL_APPEND(conn->recv_list, frag);
         __sock352_send_ack(conn);
         conn->expectedseqnum++;
-        pthread_mutex_unlock (&conn->lock);
       }
       else if (frag->header.flags == SOCK352_ACK) {
-        /* ack_no == the first sequence_no */
-        if (frag->header.ack_no == conn->send_list->header.sequence_no) {
-          pthread_mutex_lock (&conn->lock);
-          sock352_fragment_t *del = conn->send_list;
-          DL_DELETE(conn->send_list, del);
-          free(del);
-          conn->base++;
-          pthread_mutex_unlock (&conn->lock);
-        }
-        else
-          continue;
+        printf("received ack\n");
+        sock352_fragment_t *del = conn->send_list;
+        DL_DELETE(conn->send_list, del);
+        free(del);
+        conn->base++;
+        pthread_cond_signal(&conn->base_change);
+        if (conn->base != conn->nextseqnum)
+          __sock352_timer_init(arg);
+        free(frag);
       }
-      else
-        ;
+      else if (frag->header.flags == SOCK352_FIN) {
+        conn->close = 1;
+        free(frag);
+      }
+      else {
+        free(frag);
+      }
+      pthread_mutex_unlock (&conn->lock);
     }
   }
 }
@@ -487,19 +422,19 @@ void * timer(void * arg)
   
   while (1) {
     pthread_mutex_lock(&conn->lock);
-    uint64_t current_time = __sock352_get_timestamp();
     
-    /* when timeout event occurs */
-    if (current_time - conn->send_list->timestamp > conn->timeout) {
-      __sock352_send_expired_fragments(conn);
-    }
-    
-    /* when send buffer is empty, terminate this thread */
     if (conn->base == conn->nextseqnum) {
       pthread_mutex_unlock(&conn->lock);
       pthread_exit(NULL);
     }
+    
+    /* when timeout event occurs */
+    uint64_t current_time = __sock352_get_timestamp();
+    if (current_time - conn->send_list->timestamp > conn->timeout) {
+      __sock352_send_expired_fragments(conn);
+    }
     pthread_mutex_unlock(&conn->lock);
+//    pthread_testcancel();
   }
 }
 
@@ -507,14 +442,31 @@ void * timer(void * arg)
 /* Internal Functions */
 void __sock352_receiver_init(void *arg)
 {
-  pthread_t thread;
-  pthread_create(&thread, NULL, receiver, arg);
+  pthread_create(&receiver_thread, NULL, receiver, arg);
 }
 
-void __sock352_timeout_init(void *arg)
+void __sock352_timer_init(void *arg)
 {
-  pthread_t thread;
-  pthread_create(&thread, NULL, timer, arg);
+  pthread_create(&timer_thead, NULL, timer, arg);
+}
+
+sock352_connection_t * __sock352_create_connection()
+{
+  sock352_connection_t *conn = malloc(sizeof(sock352_connection_t));
+  bzero(conn, sizeof(sock352_connection_t));
+  conn->sock352_fd = sock352_fd_base++;
+  conn->passive = 0;
+  conn->close = 0;
+  pthread_mutex_init(&conn->lock, NULL);
+  pthread_cond_init(&conn->base_change, NULL);
+  HASH_ADD_INT(all_connections, sock352_fd, conn);
+  return conn;
+}
+
+void __sock352_destroy_connection(sock352_connection_t * conn)
+{
+  HASH_DEL(all_connections, conn);
+  free(conn);
 }
 
 sock352_fragment_t * __sock352_create_fragment()
@@ -535,12 +487,13 @@ int __sock352_send_ack(sock352_connection_t *conn)
 {
   sock352_fragment_t *frag = __sock352_create_fragment();
   frag->header.flags = SOCK352_ACK;
-  frag->header.checksum = __sock352_compute_checksum(frag);
   frag->header.ack_no = conn->expectedseqnum;
   
   if (sendto(master_fd, (char *)frag, sizeof(sock352_fragment_t), 0, (struct sockaddr *)&conn->dest, sizeof(conn->dest)) < 0) {
     printf("Eorror in sending ACK");
   }
+  printf("sent ack\n");
+  free(frag);
   return 0;
 }
 
@@ -567,16 +520,16 @@ uint16_t __sock352_compute_checksum(sock352_fragment_t *fragment) {
   int len = fragment->header.payload_len;
   
   uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
-  uint16_t *frag = (uint16_t *)fragment;
+  uint16_t *buf = (uint16_t *)fragment->data;
   while(len > 1){
-    sum += *frag++;
+    sum += *buf++;
     if(sum & 0x80000000)   /* if high order bit set, fold */
       sum = (sum & 0xFFFF) + (sum >> 16);
     len -= 2;
   }
   
   if(len)
-    sum += (uint16_t) *(uint32_t *)fragment;
+    sum += (uint16_t) *(uint32_t *)buf;
   
   while(sum>>16) /* take care of left over byte */
     sum = (sum & 0xFFFF) + (sum >> 16);
